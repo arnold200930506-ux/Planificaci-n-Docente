@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Sistema de Planificación Docente MINERD</string>
+    <string name="title_activity_main">Sistema de Planificación Docente MINERD</string>
+    <string name="package_name">gob.minerd.planificacion</string>
+    <string name="custom_url_scheme">gob.minerd.planificacion</string>
+</resources>

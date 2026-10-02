@@ -1,0 +1,41 @@
+{
+  "name": "minerd-planificacion-docente",
+  "productName": "Sistema de Planificación Docente MINERD",
+  "version": "1.0.0",
+  "description": "Plataforma institucional de planificación docente y gestión curricular del MINERD",
+  "main": "main.js",
+  "author": "Ministerio de Educación de la República Dominicana",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win portable nsis"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "gob.minerd.planificacion",
+    "productName": "Sistema de Planificación Docente MINERD",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "main.js",
+      "app/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Planificación Docente MINERD"
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "DailyPlan": {
+      "title": "DailyPlan",
+      "description": "Planificación diaria de clase según diseño curricular MINERD",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "date": { "type": "string" },
+        "grade": { "type": "string" },
+        "section": { "type": "string" },
+        "area": { "type": "string" },
+        "teacherName": { "type": "string" }
+      },
+      "required": ["id", "title", "date", "area", "grade"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Ficha del personal docente de la escuela",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "idCard": { "type": "string" },
+        "phone": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Coordinator": {
+      "title": "Coordinator",
+      "description": "Equipo de coordinadores pedagógicos y de ciclo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "roleTitle": { "type": "string" }
+      },
+      "required": ["id", "name", "roleTitle"]
+    },
+    "Orientator": {
+      "title": "Orientator",
+      "description": "Equipo de la Unidad de Orientación y Psicología",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "roleTitle": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Estudiante matriculado en el centro educativo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "grade": { "type": "string" },
+        "section": { "type": "string" }
+      },
+      "required": ["id", "name", "grade", "section"]
+    },
+    "PsychologyReport": {
+      "title": "PsychologyReport",
+      "description": "Reporte y expediente de intervención de Orientación y Psicología",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "caseCode": { "type": "string" },
+        "studentName": { "type": "string" }
+      },
+      "required": ["id", "studentName"]
+    }
+  },
+  "firestore": {
+    "/dailyPlans/{planId}": {
+      "schema": "DailyPlan",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/weeklyPlans/{planId}": {
+      "schema": "DailyPlan",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/learningUnits/{unitId}": {
+      "schema": "DailyPlan",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/coordinators/{coordinatorId}": {
+      "schema": "Coordinator",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/orientators/{orientatorId}": {
+      "schema": "Orientator",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/psychologyReports/{reportId}": {
+      "schema": "PsychologyReport",
+      "allow": { "read": "true", "write": "true" }
+    },
+    "/schoolConfig/{configId}": {
+      "schema": "DailyPlan",
+      "allow": { "read": "true", "write": "true" }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Sistema de Planificación Docente - Escuela Dr. José Francisco Peña Gómez",
+  "description": "Herramienta integral de planificación curricular diaria y semanal para docentes dominicanos, alineada al diseño curricular oficial del MINERD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
