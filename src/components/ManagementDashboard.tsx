@@ -1,3 +1,4 @@
+import { storageService } from '../services/storageService';
 import React, { useState } from 'react';
 import { 
   ShieldCheck, 
@@ -39,6 +40,7 @@ import {
 } from '../types/minerd';
 import { authService } from '../services/authService';
 import { GradeAttendanceConsultation } from './GradeAttendanceConsultation';
+import { CurricularSummaryView } from './CurricularSummaryView';
 import { 
   generateWhatsAppMessage, 
   openWhatsAppChat,
@@ -253,7 +255,7 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
       
       {/* Navigation Sub-Tabs: Validación Curricular vs Consulta de Asistencia por Grado */}
-      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl border border-slate-300 shadow-inner">
+      <div className="no-print flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl border border-slate-300 shadow-inner">
         <button
           type="button"
           onClick={() => setActiveSupervisionTab('plans')}
@@ -363,6 +365,13 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
         </div>
 
       </div>
+
+      {/* Resumen Curricular: Visualización de Datos (Porcentaje por Estado y Área Pedagógica) */}
+      <CurricularSummaryView
+        dailyPlans={dailyPlans}
+        weeklyPlans={weeklyPlans}
+        learningUnits={learningUnits}
+      />
 
       {/* Main Supervision Workspace */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden space-y-6 p-6">
@@ -937,7 +946,85 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                         badgeColor = 'bg-purple-100 text-purple-800 border-purple-200';
                       }
 
-                      return (
+                    
+  // Descarga segura y robusta de archivos adjuntos (Blob/Base64/Storage)
+  const handleDownloadAttachment = async (att: any) => {
+    if (att.url && !att.dataUrl) {
+      window.open(att.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    let dataUrl = att.dataUrl;
+    if (!dataUrl) {
+      try {
+        const fetched = await storageService.getAttachmentDataUrl(att.id);
+        if (fetched) dataUrl = fetched;
+      } catch (err) {
+        console.warn('Error recuperando adjunto:', err);
+      }
+    }
+
+    if (!dataUrl) {
+      alert(`No se encontró el contenido del archivo "${att.name || 'documento'}".`);
+      return;
+    }
+
+    try {
+      if (dataUrl.startsWith('data:')) {
+        const parts = dataUrl.split(',');
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : (att.type || 'application/pdf');
+        const b64Data = parts[1];
+        const byteCharacters = atob(b64Data);
+        const byteArrays = [];
+
+        const sliceSize = 512;
+        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+          const slice = byteCharacters.slice(offset, offset + sliceSize);
+          const byteNumbers = new Array(slice.length);
+          for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+          }
+          byteArrays.push(new Uint8Array(byteNumbers));
+        }
+
+        const blob = new Blob(byteArrays, { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = att.name || 'planificacion.pdf';
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }, 300);
+      } else {
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = dataUrl;
+        a.download = att.name || 'planificacion.pdf';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => document.body.removeChild(a), 300);
+      }
+    } catch (e) {
+      console.error('Error al descargar:', e);
+      const fallback = document.createElement('a');
+      fallback.href = dataUrl;
+      fallback.download = att.name || 'planificacion.pdf';
+      fallback.target = '_blank';
+      document.body.appendChild(fallback);
+      fallback.click();
+      setTimeout(() => document.body.removeChild(fallback), 300);
+    }
+  };
+
+  return (
                         <div key={i} className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-indigo-100 text-xs shadow-2xs gap-3">
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <span className={`px-2 py-0.5 text-[9px] font-black rounded-md border ${badgeColor} shrink-0`}>
@@ -961,16 +1048,17 @@ export const ManagementDashboard: React.FC<ManagementDashboardProps> = ({
                                 <ExternalLink className="w-3 h-3" />
                                 Abrir Enlace
                               </a>
-                            ) : att.dataUrl ? (
-                              <a
-                                href={att.dataUrl}
-                                download={att.name}
-                                className="inline-flex items-center gap-1 text-slate-800 hover:text-white font-bold text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-slate-900 rounded-lg transition-colors"
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadAttachment(att)}
+                                className="inline-flex items-center gap-1 text-slate-800 hover:text-white font-bold text-[11px] px-2.5 py-1 bg-slate-100 hover:bg-slate-900 rounded-lg transition-colors cursor-pointer"
+                                title="Descargar documento PDF / archivo"
                               >
                                 <Download className="w-3 h-3" />
                                 Descargar Archivo
-                              </a>
-                            ) : null}
+                              </button>
+                            )}
                           </div>
                         </div>
                       );

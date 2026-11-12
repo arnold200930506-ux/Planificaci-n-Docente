@@ -11,7 +11,9 @@ import {
   ArrowRight,
   CheckCircle2,
   FileSpreadsheet,
-  AlertCircle
+  AlertCircle,
+  Wand2,
+  Loader2
 } from 'lucide-react';
 import { 
   WeeklyPlan, 
@@ -23,6 +25,8 @@ import {
 } from '../types/minerd';
 import { TRANSVERSAL_AXES } from '../data/minerdCurriculum';
 import { FileAttachmentManager } from './FileAttachmentManager';
+import { aiAssistantService } from '../services/aiAssistantService';
+import { INDIVIDUAL_GRADES_LIST, inferLevelFromGrade } from './LearningUnitPlanner';
 
 interface WeeklyPlannerProps {
   initialPlan?: WeeklyPlan | null;
@@ -111,6 +115,9 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
   const [viewMode, setViewMode] = useState<'tabs' | 'matrix'>('tabs');
   const [newIndicator, setNewIndicator] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiFeedbackMsg, setAiFeedbackMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPlan) {
@@ -131,16 +138,51 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
     }));
   };
 
-  const handleSave = () => {
-    if (!plan.unitTitle.trim()) {
-      alert('Por favor ingrese el Título de la Unidad de Aprendizaje.');
-      return;
+  const handleGenerateWeeklyWithAI = async () => {
+    setIsGeneratingAI(true);
+    setAiFeedbackMsg(null);
+    try {
+      const topicToUse = plan.unitTitle.trim() || aiPrompt.trim() || `Secuencia Semanal de ${plan.area} (${plan.grade})`;
+      const res = await aiAssistantService.generatePlan({
+        planType: 'weekly',
+        level: plan.level,
+        grade: plan.grade,
+        area: plan.area,
+        topic: topicToUse,
+        teacherPrompt: aiPrompt.trim()
+      });
+      const d = res.data || {};
+      setPlan(prev => ({
+        ...prev,
+        unitTitle: d.unitTitle || prev.unitTitle || topicToUse,
+        unitCompetency: d.unitCompetency || prev.unitCompetency,
+        achievementIndicators: Array.isArray(d.achievementIndicators) && d.achievementIndicators.length > 0 ? d.achievementIndicators : prev.achievementIndicators,
+        days: d.days ? {
+          lunes: { ...DEFAULT_DAY, ...(d.days.lunes || {}) },
+          martes: { ...DEFAULT_DAY, ...(d.days.martes || {}) },
+          miercoles: { ...DEFAULT_DAY, ...(d.days.miercoles || {}) },
+          jueves: { ...DEFAULT_DAY, ...(d.days.jueves || {}) },
+          viernes: { ...DEFAULT_DAY, ...(d.days.viernes || {}) }
+        } : prev.days
+      }));
+      setAiFeedbackMsg('¡Matriz Semanal de Lunes a Viernes generada con Inteligencia Artificial! Revise cada día o presione Guardar Matriz.');
+    } catch (e) {
+      console.error('Error generating weekly plan with AI:', e);
+      setAiFeedbackMsg('Se generó la secuencia semanal base.');
+    } finally {
+      setIsGeneratingAI(false);
     }
+  };
+
+  const handleSave = () => {
+    const finalUnitTitle = plan.unitTitle.trim() || `Secuencia de ${plan.area} (${plan.grade})`;
     const planToSave = {
       ...plan,
-      title: `Semana ${plan.weekNumber}: ${plan.unitTitle}`,
+      unitTitle: finalUnitTitle,
+      title: `Semana ${plan.weekNumber}: ${finalUnitTitle}`,
       updatedAt: new Date().toISOString()
     };
+    setPlan(planToSave);
     onSave(planToSave);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
@@ -272,6 +314,63 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
         </div>
       </div>
 
+      {/* Asistente IA para Planificación Semanal */}
+      <div className="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 text-white p-5 sm:p-6 rounded-3xl border border-indigo-500/30 shadow-md space-y-3.5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+            <Wand2 className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-400 text-slate-950">
+                Asistente IA Semanal MINERD
+              </span>
+              <span className="text-xs text-indigo-200 font-medium">Lunes a Viernes</span>
+            </div>
+            <h3 className="text-sm font-black text-white mt-0.5">
+              Generador Automático de Secuencia Semanal Completa (5 Días) con IA
+            </h3>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="sm:col-span-3">
+            <input
+              type="text"
+              value={aiPrompt}
+              onChange={(e) => setAiPrompt(e.target.value)}
+              placeholder="Indique el tema de la semana para que la IA diseñe las clases de Lunes a Viernes..."
+              className="w-full text-xs p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-indigo-200/70 focus:bg-white/15 focus:outline-none"
+            />
+          </div>
+          <button
+            type="button"
+            disabled={isGeneratingAI}
+            onClick={handleGenerateWeeklyWithAI}
+            className="px-4 py-3 bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 rounded-xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+          >
+            {isGeneratingAI ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Generando...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                <span>Generar Semana con IA</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {aiFeedbackMsg && (
+          <div className="p-2.5 bg-emerald-500/20 border border-emerald-400/40 rounded-xl text-xs font-bold text-emerald-200 flex items-center gap-2">
+            <Check className="w-4 h-4 text-emerald-300 shrink-0" />
+            <span>{aiFeedbackMsg}</span>
+          </div>
+        )}
+      </div>
+
       {/* General Information Header */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
         
@@ -298,7 +397,7 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
         )}
 
         <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-          Datos de la Unidad y Semana Curricular
+          Datos de la Unidad y Semana Curricular (Grado Directo)
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
@@ -310,11 +409,14 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
               onChange={(e) => {
                 const selectedName = e.target.value;
                 const foundTeacher = teachers.find(t => t.name === selectedName);
+                const firstGrade = foundTeacher?.grades?.find(g => g !== 'Maestro del Área (Rotativo)') || foundTeacher?.grades?.[0];
                 setPlan(prev => ({
                   ...prev,
                   teacherName: selectedName,
                   teacherId: foundTeacher?.id || prev.teacherId,
-                  teacherPhone: foundTeacher?.phone || prev.teacherPhone
+                  teacherPhone: foundTeacher?.phone || prev.teacherPhone,
+                  grade: firstGrade && firstGrade !== 'Maestro del Área (Rotativo)' ? firstGrade : prev.grade,
+                  area: foundTeacher?.areas?.[0] || prev.area
                 }));
               }}
               className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
@@ -359,18 +461,24 @@ export const WeeklyPlanner: React.FC<WeeklyPlannerProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">Grado</label>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">Grado / Curso</label>
             <select
               value={plan.grade}
-              onChange={(e) => setPlan(prev => ({ ...prev, grade: e.target.value }))}
-              className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+              onChange={(e) => {
+                const selectedGrade = e.target.value;
+                setPlan(prev => ({
+                  ...prev,
+                  grade: selectedGrade,
+                  level: inferLevelFromGrade(selectedGrade)
+                }));
+              }}
+              className="w-full text-xs p-3 bg-indigo-50/70 border-2 border-indigo-300 rounded-xl font-black text-indigo-950"
             >
-              <option value="1ro Grado">1ro Grado</option>
-              <option value="2do Grado">2do Grado</option>
-              <option value="3ro Grado">3ro Grado</option>
-              <option value="4to Grado">4to Grado</option>
-              <option value="5to Grado">5to Grado</option>
-              <option value="6to Grado">6to Grado</option>
+              {INDIVIDUAL_GRADES_LIST.map(item => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>

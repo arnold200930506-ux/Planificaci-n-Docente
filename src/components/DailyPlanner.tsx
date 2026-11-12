@@ -13,7 +13,9 @@ import {
   Users,
   AlertCircle,
   FileCheck,
-  UserCheck
+  UserCheck,
+  Wand2,
+  Loader2
 } from 'lucide-react';
 import { 
   DailyPlan, 
@@ -37,6 +39,8 @@ import {
 } from '../data/minerdCurriculum';
 import { FileAttachmentManager } from './FileAttachmentManager';
 import { Paperclip } from 'lucide-react';
+import { aiAssistantService } from '../services/aiAssistantService';
+import { INDIVIDUAL_GRADES_LIST, inferLevelFromGrade } from './LearningUnitPlanner';
 
 interface DailyPlannerProps {
   initialPlan?: DailyPlan | null;
@@ -74,6 +78,30 @@ const DEFAULT_EMPTY_PLAN: DailyPlan = {
   closeDuration: 15,
   closeActivities: '',
   metacognitionQuestions: '',
+  inicialMoments: {
+    encuentroGrupo: {
+      duration: 45,
+      activity: '',
+      resources: 'Calendario, cartel del tiempo, canciones de bienvenida, asistencia'
+    },
+    actividadGrupal: {
+      name: 'Expresión Corporal y Artística',
+      duration: 45,
+      activity: '',
+      resources: 'Papel manila, crayones, témperas, música infantil'
+    },
+    grupoGrande: {
+      duration: 45,
+      activity: '',
+      resources: 'Hojas de trabajo, tijeras de punta roma, pegamento, bloques'
+    },
+    grupoPequeno: {
+      duration: 45,
+      activity: '',
+      studentNames: '',
+      resources: 'Tarjetas de letras/números, material concreto manipulativo'
+    }
+  },
   didacticResources: ['Pizarra y marcadores', 'Fascículo MINERD', 'Cuaderno del estudiante'],
   evaluationTypes: ['Formativa'],
   evaluationAgents: ['Heteroevaluación'],
@@ -108,6 +136,12 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
       specificCompetencies: Array.isArray(base.specificCompetencies) ? base.specificCompetencies : [],
       conceptualContents: Array.isArray(base.conceptualContents) ? base.conceptualContents : [],
       proceduralContents: Array.isArray(base.proceduralContents) ? base.proceduralContents : [],
+      inicialMoments: base.inicialMoments || {
+        encuentroGrupo: { duration: 45, activity: '', resources: 'Calendario, cartel del tiempo, canciones' },
+        actividadGrupal: { name: 'Expresión Corporal', duration: 45, activity: '', resources: 'Material de arte, música' },
+        grupoGrande: { duration: 45, activity: '', resources: 'Hojas de trabajo, bloques' },
+        grupoPequeno: { duration: 45, activity: '', studentNames: '', resources: 'Material concreto manipulativo' }
+      },
       attitudinalContents: Array.isArray(base.attitudinalContents) ? base.attitudinalContents : [],
       achievementIndicators: Array.isArray(base.achievementIndicators) ? base.achievementIndicators : [],
       didacticResources: Array.isArray(base.didacticResources) ? base.didacticResources : ['Pizarra y marcadores'],
@@ -128,6 +162,9 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
   const [newAttitudinal, setNewAttitudinal] = useState('');
   const [newIndicator, setNewIndicator] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiFeedbackMsg, setAiFeedbackMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPlan) {
@@ -158,16 +195,80 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
     }));
   };
 
-  const handleSave = () => {
-    if (!plan.unitTheme.trim()) {
-      alert('Por favor ingrese el Tema del Día / Unidad de Aprendizaje.');
-      return;
+  const handleGenerateDailyWithAI = async () => {
+    setIsGeneratingAI(true);
+    setAiFeedbackMsg(null);
+    try {
+      const topicToUse = plan.unitTheme.trim() || aiPrompt.trim() || (plan.level === 'inicial' ? 'Explorando mi entorno con alegría' : `Contenido práctico de ${plan.area} (${plan.grade})`);
+      const res = await aiAssistantService.generatePlan({
+        planType: 'daily',
+        level: plan.level,
+        grade: plan.grade,
+        area: plan.level === 'inicial' ? 'Desarrollo Integral (Nivel Inicial)' : plan.area,
+        topic: topicToUse,
+        teacherPrompt: aiPrompt.trim()
+      });
+      const d = res.data || {};
+      setPlan(prev => ({
+        ...prev,
+        unitTheme: d.unitTheme || prev.unitTheme || topicToUse,
+        pedagogicalIntention: d.pedagogicalIntention || prev.pedagogicalIntention,
+        transversalAxis: d.transversalAxis || prev.transversalAxis,
+        specificCompetencies: Array.isArray(d.specificCompetencies) && d.specificCompetencies.length > 0 ? d.specificCompetencies : prev.specificCompetencies,
+        conceptualContents: Array.isArray(d.contents?.conceptual) && d.contents.conceptual.length > 0 ? d.contents.conceptual : prev.conceptualContents,
+        proceduralContents: Array.isArray(d.contents?.procedural) && d.contents.procedural.length > 0 ? d.contents.procedural : prev.proceduralContents,
+        attitudinalContents: Array.isArray(d.contents?.attitudinal) && d.contents.attitudinal.length > 0 ? d.contents.attitudinal : prev.attitudinalContents,
+        achievementIndicators: Array.isArray(d.achievementIndicators) && d.achievementIndicators.length > 0 ? d.achievementIndicators : prev.achievementIndicators,
+        startActivities: d.moments?.startActivities || prev.startActivities,
+        developmentActivities: d.moments?.developmentActivities || prev.developmentActivities,
+        closeActivities: d.moments?.closeActivities || prev.closeActivities,
+        metacognitionQuestions: Array.isArray(d.moments?.metacognitionQuestions)
+          ? d.moments.metacognitionQuestions.join('\n')
+          : prev.metacognitionQuestions,
+        didacticResources: Array.isArray(d.resources) && d.resources.length > 0 ? d.resources : prev.didacticResources,
+        inicialMoments: prev.level === 'inicial' && d.inicialMoments ? {
+          encuentroGrupo: {
+            duration: prev.inicialMoments?.encuentroGrupo?.duration || 45,
+            activity: d.inicialMoments.encuentroDeGrupo || prev.inicialMoments?.encuentroGrupo?.activity || '',
+            resources: prev.inicialMoments?.encuentroGrupo?.resources || 'Calendario, cartel del tiempo, canciones'
+          },
+          actividadGrupal: {
+            name: d.inicialMoments.actividadGrupalType || prev.inicialMoments?.actividadGrupal?.name || 'Expresión Plástica',
+            duration: prev.inicialMoments?.actividadGrupal?.duration || 45,
+            activity: d.inicialMoments.actividadGrupalContent || prev.inicialMoments?.actividadGrupal?.activity || '',
+            resources: prev.inicialMoments?.actividadGrupal?.resources || 'Témperas, crayones, papel manila'
+          },
+          grupoGrande: {
+            duration: prev.inicialMoments?.grupoGrande?.duration || 45,
+            activity: d.inicialMoments.grupoGrande || prev.inicialMoments?.grupoGrande?.activity || '',
+            resources: prev.inicialMoments?.grupoGrande?.resources || 'Masilla, bloques, hojas de trabajo'
+          },
+          grupoPequeno: {
+            duration: prev.inicialMoments?.grupoPequeno?.duration || 45,
+            activity: d.inicialMoments.grupoPequeno || prev.inicialMoments?.grupoPequeno?.activity || '',
+            studentNames: prev.inicialMoments?.grupoPequeno?.studentNames || '',
+            resources: prev.inicialMoments?.grupoPequeno?.resources || 'Tarjetas ilustradas y material concreto'
+          }
+        } : prev.inicialMoments
+      }));
+      setAiFeedbackMsg('¡Planificación Diaria generada con Inteligencia Artificial! Revise los pasos 2, 3 y 4 o presione Guardar Plan.');
+    } catch (e) {
+      console.error('Error generating daily plan with AI:', e);
+      setAiFeedbackMsg('Se completó la sugerencia base curricular.');
+    } finally {
+      setIsGeneratingAI(false);
     }
+  };
+
+  const handleSave = () => {
+    const finalTheme = plan.unitTheme.trim() || `Clase de ${plan.level === 'inicial' ? 'Nivel Inicial' : plan.area} (${plan.grade})`;
     const planToSave = {
       ...plan,
-      title: plan.unitTheme,
+      unitTheme: finalTheme,
+      title: finalTheme,
       updatedAt: new Date().toISOString()
     };
+    setPlan(planToSave);
     onSave(planToSave);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
@@ -342,7 +443,7 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          3. Momentos de Clase
+          {plan.level === 'inicial' ? '3. Rutina Diaria (Encuentro/Grupos)' : '3. Momentos de Clase'}
         </button>
         <button
           type="button"
@@ -365,6 +466,74 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
       {/* STEP 1: DATOS GENERALES Y CONFIGURACIÓN CURRICULAR */}
       {activeStep === 1 && (
         <div className="space-y-6">
+          {/* Banner de Detección Automática de Nivel Inicial */}
+          {plan.level === 'inicial' && (
+            <div className="p-4 bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/10 border-2 border-amber-400 rounded-3xl flex items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl p-2 bg-amber-400 rounded-2xl shadow-xs">🧒</span>
+                <div>
+                  <h3 className="text-xs font-black text-amber-950 uppercase tracking-tight">
+                    Modo Nivel Inicial Activado Automáticamente
+                  </h3>
+                  <p className="text-[11px] text-amber-900 font-medium">
+                    El paso 3 se adaptó a la <strong>Rutina Oficial MINERD</strong>: Encuentro de Grupo, Actividad Grupal, Grupo Grande y Grupo Pequeño.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveStep(3)}
+                className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl text-xs font-black shadow-xs shrink-0 cursor-pointer"
+              >
+                Ver Rutina Diaria →
+              </button>
+            </div>
+          )}
+
+          {/* Nivel Selector Prominente (Inicial vs Primario / Secundario) */}
+          <div className="bg-gradient-to-r from-indigo-900 via-slate-900 to-indigo-950 p-4 sm:p-5 rounded-3xl text-white shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                  Modo de Planificación
+                </span>
+                <span className="text-xs text-indigo-200">
+                  {plan.level === 'inicial' ? '👶 Modalidad Nivel Inicial' : '📘 Modalidad Primaria / Secundaria'}
+                </span>
+              </div>
+              <h3 className="text-sm font-black text-white mt-1">
+                {plan.level === 'inicial' 
+                  ? 'Planificación Diaria del Nivel Inicial (Rutina: Encuentro de Grupo, Grupos Pequeño/Grande)' 
+                  : 'Planificación Diaria por Competencias (Momentos: Inicio, Desarrollo y Cierre)'}
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-slate-800/80 p-1 rounded-2xl border border-slate-700/80 shrink-0">
+              <button
+                type="button"
+                onClick={() => setPlan(prev => ({ ...prev, level: 'inicial', grade: 'Kínder / Pre-Primario' }))}
+                className={`px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  plan.level === 'inicial'
+                    ? 'bg-amber-400 text-slate-950 shadow-md scale-105'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <span>👶</span> Nivel Inicial
+              </button>
+              <button
+                type="button"
+                onClick={() => setPlan(prev => ({ ...prev, level: 'primario_segundo_ciclo', grade: '4to Grado' }))}
+                className={`px-3 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 ${
+                  plan.level !== 'inicial'
+                    ? 'bg-indigo-600 text-white shadow-md scale-105'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+              >
+                <span>📘</span> Primaria / Secundaria
+              </button>
+            </div>
+          </div>
+
           
           {/* Review Feedback Banner */}
           {plan.reviewFeedback && (
@@ -388,10 +557,67 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
             </div>
           )}
 
+          {/* Asistente IA para Planificación Diaria */}
+          <div className="bg-gradient-to-r from-indigo-950 via-purple-950 to-slate-900 text-white p-5 sm:p-6 rounded-3xl border border-indigo-500/30 shadow-md space-y-3.5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-400/40 flex items-center justify-center text-amber-300 shrink-0">
+                <Wand2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-400 text-slate-950">
+                    Asistente IA MINERD
+                  </span>
+                  <span className="text-xs text-indigo-200 font-medium">Adecuación Curricular</span>
+                </div>
+                <h3 className="text-sm font-black text-white mt-0.5">
+                  Generador Inteligente de Planificación Diaria (Momentos, Contenidos e Indicadores)
+                </h3>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div className="sm:col-span-3">
+                <input
+                  type="text"
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Escriba el tema o actividad deseada para que la IA complete todos los pasos del Plan Diario..."
+                  className="w-full text-xs p-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder:text-indigo-200/70 focus:bg-white/15 focus:outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                disabled={isGeneratingAI}
+                onClick={handleGenerateDailyWithAI}
+                className="px-4 py-3 bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-slate-950 rounded-xl text-xs font-black transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isGeneratingAI ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Generando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Generar Plan con IA</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {aiFeedbackMsg && (
+              <div className="p-2.5 bg-emerald-500/20 border border-emerald-400/40 rounded-xl text-xs font-bold text-emerald-200 flex items-center gap-2">
+                <Check className="w-4 h-4 text-emerald-300 shrink-0" />
+                <span>{aiFeedbackMsg}</span>
+              </div>
+            )}
+          </div>
+
           {/* Institutional Header Data */}
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
             <h2 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-              1. Datos Institucionales y Asignatura
+              1. Datos Institucionales, Grado Directo y Asignatura
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -404,12 +630,21 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
                   onChange={(e) => {
                     const selectedName = e.target.value;
                     const foundTeacher = teachers.find(t => t.name === selectedName);
-                    setPlan(prev => ({
-                      ...prev,
-                      teacherName: selectedName,
-                      teacherId: foundTeacher?.id || prev.teacherId,
-                      teacherPhone: foundTeacher?.phone || prev.teacherPhone
-                    }));
+                    const firstGrade = foundTeacher?.grades?.find(g => g !== 'Maestro del Área (Rotativo)') || foundTeacher?.grades?.[0];
+
+                    setPlan(prev => {
+                      const nextGrade = firstGrade && firstGrade !== 'Maestro del Área (Rotativo)' ? firstGrade : prev.grade;
+                      const nextLevel = inferLevelFromGrade(nextGrade);
+                      return {
+                        ...prev,
+                        teacherName: selectedName,
+                        teacherId: foundTeacher?.id || prev.teacherId,
+                        teacherPhone: foundTeacher?.phone || prev.teacherPhone,
+                        grade: nextGrade,
+                        level: nextLevel,
+                        area: foundTeacher?.areas?.[0] || prev.area
+                      };
+                    });
                   }}
                   className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-bold text-slate-800"
                 >
@@ -431,34 +666,25 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Nivel Educativo</label>
-                <select
-                  value={plan.level}
-                  onChange={(e) => setPlan(prev => ({ ...prev, level: e.target.value as EducationalLevel }))}
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-medium"
-                >
-                  <option value="inicial">Nivel Inicial</option>
-                  <option value="primario_primer_ciclo">Primario (1er Ciclo: 1ro - 3ro)</option>
-                  <option value="primario_segundo_ciclo">Primario (2do Ciclo: 4to - 6to)</option>
-                  <option value="secundario_primer_ciclo">Secundario (1er Ciclo: 1ro - 3ro)</option>
-                  <option value="secundario_segundo_ciclo">Secundario (2do Ciclo: 4to - 6to)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Grado</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Curso / Grado (Sin Agrupar)</label>
                 <select
                   value={plan.grade}
-                  onChange={(e) => setPlan(prev => ({ ...prev, grade: e.target.value }))}
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-medium"
+                  onChange={(e) => {
+                    const selectedGrade = e.target.value;
+                    const detectedLevel = inferLevelFromGrade(selectedGrade);
+                    setPlan(prev => ({
+                      ...prev,
+                      grade: selectedGrade,
+                      level: detectedLevel
+                    }));
+                  }}
+                  className="w-full text-xs p-3 bg-indigo-50/70 border-2 border-indigo-300 rounded-xl focus:bg-white font-black text-indigo-950"
                 >
-                  <option value="Kínder / Pre-Primario">Kínder / Pre-Primario</option>
-                  <option value="1ro Grado">1ro Grado</option>
-                  <option value="2do Grado">2do Grado</option>
-                  <option value="3ro Grado">3ro Grado</option>
-                  <option value="4to Grado">4to Grado</option>
-                  <option value="5to Grado">5to Grado</option>
-                  <option value="6to Grado">6to Grado</option>
+                  {INDIVIDUAL_GRADES_LIST.map(item => (
+                    <option key={item.value} value={item.value}>
+                      {item.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -473,24 +699,34 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Área Curricular</label>
-                <select
-                  value={plan.area}
-                  onChange={(e) => setPlan(prev => ({ ...prev, area: e.target.value as SubjectArea }))}
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-bold text-slate-800"
-                >
-                  <option value="Lengua Española">Lengua Española</option>
-                  <option value="Matemática">Matemática</option>
-                  <option value="Ciencias Sociales">Ciencias Sociales</option>
-                  <option value="Ciencias de la Naturaleza">Ciencias de la Naturaleza</option>
-                  <option value="Educación Artística">Educación Artística</option>
-                  <option value="Educación Física">Educación Física</option>
-                  <option value="Formación Integral Humana y Religiosa">Formación Integral Humana y Religiosa</option>
-                  <option value="Lenguas Extranjeras (Inglés)">Lenguas Extranjeras (Inglés)</option>
-                  <option value="Lenguas Extranjeras (Francés)">Lenguas Extranjeras (Francés)</option>
-                </select>
-              </div>
+              {plan.level === 'inicial' ? (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Enfoque Curricular</label>
+                  <div className="w-full text-xs p-3 bg-amber-50 border border-amber-300 rounded-xl font-bold text-amber-950 flex items-center gap-2">
+                    <span>🎨</span>
+                    <span>Desarrollo Integral Integrado (Sin Asignaturas)</span>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Área Curricular</label>
+                  <select
+                    value={plan.area}
+                    onChange={(e) => setPlan(prev => ({ ...prev, area: e.target.value as SubjectArea }))}
+                    className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-bold text-slate-800"
+                  >
+                    <option value="Lengua Española">Lengua Española</option>
+                    <option value="Matemática">Matemática</option>
+                    <option value="Ciencias Sociales">Ciencias Sociales</option>
+                    <option value="Ciencias de la Naturaleza">Ciencias de la Naturaleza</option>
+                    <option value="Educación Artística">Educación Artística</option>
+                    <option value="Educación Física">Educación Física</option>
+                    <option value="Formación Integral Humana y Religiosa">Formación Integral Humana y Religiosa</option>
+                    <option value="Lenguas Extranjeras (Inglés)">Lenguas Extranjeras (Inglés)</option>
+                    <option value="Lenguas Extranjeras (Francés)">Lenguas Extranjeras (Francés)</option>
+                  </select>
+                </div>
+              )}
 
               <div className="sm:col-span-2">
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Tema del Día / Unidad</label>
@@ -864,9 +1100,331 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
         </div>
       )}
 
-      {/* STEP 3: MOMENTOS DE LA CLASE (INICIO, DESARROLLO, CIERRE) */}
+      {/* STEP 3: MOMENTOS DE LA CLASE / RUTINA DIARIA */}
       {activeStep === 3 && (
         <div className="space-y-6">
+          {/* Si es Nivel Inicial, mostramos la Rutina Oficial MINERD: Encuentro de Grupo, Actividad Grupal, Grupo Grande y Grupo Pequeño */}
+          {plan.level === 'inicial' ? (
+            <div className="space-y-6">
+              <div className="p-5 bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20 border-2 border-amber-400 rounded-3xl flex items-center justify-between gap-4 shadow-xs">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-xl font-bold shadow-md">
+                    🧒
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-amber-950 uppercase tracking-tight">
+                      Momentos de la Rutina Diaria · Nivel Inicial (MINERD)
+                    </h3>
+                    <p className="text-xs text-amber-800">
+                      Organización del horario según el Diseño Curricular: Encuentro de Grupo, Actividad Grupal, Grupo Grande y Grupo Pequeño.
+                    </p>
+                  </div>
+                </div>
+                <span className="hidden sm:inline-block px-3 py-1 bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-black">
+                  Horario de Aula Inicial
+                </span>
+              </div>
+
+              {/* 1. ENCUENTRO DE GRUPO */}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-800 text-xs font-black flex items-center justify-center">1</span>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">Encuentro de Grupo (Asamblea)</h4>
+                      <p className="text-xs text-slate-500">Bienvenida, canciones, asistencia, clima, calendario y diálogo sobre el tema del día.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <label className="text-slate-600 font-bold">Duración:</label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={60}
+                      value={plan.inicialMoments?.encuentroGrupo?.duration || 45}
+                      onChange={(e) => {
+                        const dur = Number(e.target.value) || 45;
+                        setPlan(prev => ({
+                          ...prev,
+                          inicialMoments: {
+                            ...(prev.inicialMoments as any),
+                            encuentroGrupo: {
+                              ...(prev.inicialMoments?.encuentroGrupo as any),
+                              duration: dur
+                            }
+                          }
+                        }));
+                      }}
+                      className="w-16 p-2 text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-xl text-center"
+                    />
+                    <span className="text-slate-500 font-mono">min</span>
+                  </div>
+                </div>
+                <textarea
+                  rows={4}
+                  value={plan.inicialMoments?.encuentroGrupo?.activity || ''}
+                  onChange={(e) => {
+                    const act = e.target.value;
+                    setPlan(prev => ({
+                      ...prev,
+                      inicialMoments: {
+                        ...(prev.inicialMoments as any),
+                        encuentroGrupo: {
+                          ...(prev.inicialMoments?.encuentroGrupo as any),
+                          activity: act
+                        }
+                      }
+                    }));
+                  }}
+                  placeholder="Describa la asamblea, preguntas generadoras, canciones y actividades iniciales con los niños..."
+                  className="w-full text-xs p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              {/* 2. ACTIVIDAD GRUPAL (TALLERES / ARTE / LITERATURA / PSICOMOTRICIDAD) */}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-purple-100 text-purple-800 text-xs font-black flex items-center justify-center">2</span>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">Actividad Grupal (Taller Curricular)</h4>
+                      <p className="text-xs text-slate-500">Expresión Corporal, Literatura Infantil, Educación Musical o Artes Plásticas.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <label className="text-slate-600 font-bold">Duración:</label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={60}
+                      value={plan.inicialMoments?.actividadGrupal?.duration || 45}
+                      onChange={(e) => {
+                        const dur = Number(e.target.value) || 45;
+                        setPlan(prev => ({
+                          ...prev,
+                          inicialMoments: {
+                            ...(prev.inicialMoments as any),
+                            actividadGrupal: {
+                              ...(prev.inicialMoments?.actividadGrupal as any),
+                              duration: dur
+                            }
+                          }
+                        }));
+                      }}
+                      className="w-16 p-2 text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-xl text-center"
+                    />
+                    <span className="text-slate-500 font-mono">min</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Tipo de Actividad Grupal:</label>
+                    <select
+                      value={plan.inicialMoments?.actividadGrupal?.name || 'Expresión Corporal'}
+                      onChange={(e) => {
+                        const name = e.target.value;
+                        setPlan(prev => ({
+                          ...prev,
+                          inicialMoments: {
+                            ...(prev.inicialMoments as any),
+                            actividadGrupal: {
+                              ...(prev.inicialMoments?.actividadGrupal as any),
+                              name
+                            }
+                          }
+                        }));
+                      }}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+                    >
+                      <option value="Expresión Corporal y Movimiento">Expresión Corporal y Movimiento</option>
+                      <option value="Literatura Infantil (Cuentos / Poesías)">Literatura Infantil (Cuentos / Poesías)</option>
+                      <option value="Expresión Musical">Expresión Musical y Rítmica</option>
+                      <option value="Artes Plásticas y Modelado">Artes Plásticas y Modelado</option>
+                      <option value="Psicomotricidad">Psicomotricidad Grupal</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">Recursos / Materiales:</label>
+                    <input
+                      type="text"
+                      value={plan.inicialMoments?.actividadGrupal?.resources || ''}
+                      onChange={(e) => {
+                        const res = e.target.value;
+                        setPlan(prev => ({
+                          ...prev,
+                          inicialMoments: {
+                            ...(prev.inicialMoments as any),
+                            actividadGrupal: {
+                              ...(prev.inicialMoments?.actividadGrupal as any),
+                              resources: res
+                            }
+                          }
+                        }));
+                      }}
+                      placeholder="Ej. Témperas, papel manila, pandero, títeres..."
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl"
+                    />
+                  </div>
+                </div>
+                <textarea
+                  rows={3}
+                  value={plan.inicialMoments?.actividadGrupal?.activity || ''}
+                  onChange={(e) => {
+                    const act = e.target.value;
+                    setPlan(prev => ({
+                      ...prev,
+                      inicialMoments: {
+                        ...(prev.inicialMoments as any),
+                        actividadGrupal: {
+                          ...(prev.inicialMoments?.actividadGrupal as any),
+                          activity: act
+                        }
+                      }
+                    }));
+                  }}
+                  placeholder="Detalle el desarrollo del taller o actividad colectiva..."
+                  className="w-full text-xs p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              {/* 3. GRUPO GRANDE (TRABAJO COLABORATIVO / MESAS) */}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-blue-100 text-blue-800 text-xs font-black flex items-center justify-center">3</span>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">Actividades con el Grupo Grande</h4>
+                      <p className="text-xs text-slate-500">Trabajo autónomo y colaborativo en mesas o áreas asignadas mientras la docente atiende al grupo pequeño.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <label className="text-slate-600 font-bold">Duración:</label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={60}
+                      value={plan.inicialMoments?.grupoGrande?.duration || 45}
+                      onChange={(e) => {
+                        const dur = Number(e.target.value) || 45;
+                        setPlan(prev => ({
+                          ...prev,
+                          inicialMoments: {
+                            ...(prev.inicialMoments as any),
+                            grupoGrande: {
+                              ...(prev.inicialMoments?.grupoGrande as any),
+                              duration: dur
+                            }
+                          }
+                        }));
+                      }}
+                      className="w-16 p-2 text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-xl text-center"
+                    />
+                    <span className="text-slate-500 font-mono">min</span>
+                  </div>
+                </div>
+                <textarea
+                  rows={3}
+                  value={plan.inicialMoments?.grupoGrande?.activity || ''}
+                  onChange={(e) => {
+                    const act = e.target.value;
+                    setPlan(prev => ({
+                      ...prev,
+                      inicialMoments: {
+                        ...(prev.inicialMoments as any),
+                        grupoGrande: {
+                          ...(prev.inicialMoments?.grupoGrande as any),
+                          activity: act
+                        }
+                      }
+                    }));
+                  }}
+                  placeholder="Describa la tarea asignada al grupo grande (hojas de aplicación, modelado con plastilina, rasgado, construcción libre)..."
+                  className="w-full text-xs p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white leading-relaxed"
+                />
+              </div>
+
+              {/* 4. GRUPO PEQUEÑO (ATENCIÓN PERSONALIZADA DIRECTA CON LA DOCENTE) */}
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-black flex items-center justify-center">4</span>
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">Actividades con el Grupo Pequeño</h4>
+                      <p className="text-xs text-slate-500">Acompañamiento individualizado y sistemático de la docente (4 a 6 niños rotativos por día).</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <label className="text-slate-600 font-bold">Duración:</label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={60}
+                      value={plan.inicialMoments?.grupoPequeno?.duration || 45}
+                      onChange={(e) => {
+                        const dur = Number(e.target.value) || 45;
+                        setPlan(prev => ({
+                          ...prev,
+                          inicialMoments: {
+                            ...(prev.inicialMoments as any),
+                            grupoPequeno: {
+                              ...(prev.inicialMoments?.grupoPequeno as any),
+                              duration: dur
+                            }
+                          }
+                        }));
+                      }}
+                      className="w-16 p-2 text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-xl text-center"
+                    />
+                    <span className="text-slate-500 font-mono">min</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Niños seleccionados para hoy (Grupo Pequeño):</label>
+                  <input
+                    type="text"
+                    value={plan.inicialMoments?.grupoPequeno?.studentNames || ''}
+                    onChange={(e) => {
+                      const names = e.target.value;
+                      setPlan(prev => ({
+                        ...prev,
+                        inicialMoments: {
+                          ...(prev.inicialMoments as any),
+                          grupoPequeno: {
+                            ...(prev.inicialMoments?.grupoPequeno as any),
+                            studentNames: names
+                          }
+                        }
+                      }));
+                    }}
+                    placeholder="Ej. Lucas, Valentina, Sofía, Mateo y Daniel"
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-emerald-950"
+                  />
+                </div>
+                <textarea
+                  rows={3}
+                  value={plan.inicialMoments?.grupoPequeno?.activity || ''}
+                  onChange={(e) => {
+                    const act = e.target.value;
+                    setPlan(prev => ({
+                      ...prev,
+                      inicialMoments: {
+                        ...(prev.inicialMoments as any),
+                        grupoPequeno: {
+                          ...(prev.inicialMoments?.grupoPequeno as any),
+                          activity: act
+                        }
+                      }
+                    }));
+                  }}
+                  placeholder="Detalle la intencionalidad pedagógica específica (lectoescritura inicial, reconocimiento fonológico, conteo y clasificación, motricidad fina)..."
+                  className="w-full text-xs p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white leading-relaxed"
+                />
+              </div>
+            </div>
+          ) : (
+            /* Vista para Nivel Primario y Secundario (Inicio, Desarrollo y Cierre) */
+            <div className="space-y-6">
+
           
           {/* Time presets */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
@@ -1031,6 +1589,8 @@ export const DailyPlanner: React.FC<DailyPlannerProps> = ({
               />
             </div>
           </div>
+        </div>
+      )}
 
           <div className="flex justify-between items-center">
             <button

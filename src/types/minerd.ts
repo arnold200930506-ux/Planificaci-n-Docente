@@ -88,7 +88,10 @@ export type CoordinatorCycle =
   | 'Nivel Inicial' 
   | 'Primario 1er Ciclo' 
   | 'Primario 2do Ciclo' 
+  | 'Primer Ciclo (1ro a 3ro)'
+  | 'Segundo Ciclo (4to a 6to)'
   | 'Secundaria' 
+  | 'Coordinación General / Pedagógica'
   | 'Registro y Control Académico'
   | 'Administrativo y Financiero'
   | 'General Institucional';
@@ -97,12 +100,13 @@ export interface Coordinator {
   id: string;
   idCard: string;
   name: string;
-  roleTitle: string; // ej: "Coordinador/a Pedagógico/a", "Coordinador/a de Registro y Control Académico", "Coordinador/a Administrativo/a y Financiero/a"
+  roleTitle?: string;
   phone: string;
   email: string;
+  accessPin?: string;
   cycle: CoordinatorCycle;
   shift: SchoolShift;
-  assignedGrades: string[];
+  assignedGrades?: string[];
   department?: 'Pedagógico' | 'Registro y Control' | 'Administrativo y Financiero' | 'General';
   password?: string; // Clave de acceso individual
   status: 'active' | 'inactive';
@@ -310,6 +314,7 @@ export interface DailyPlan {
 
   // Attachments / Digital Resources
   attachments?: PlanAttachment[];
+  inicialData?: InicialUnitData;
 
   // Curricular elements
   fundamentalCompetencies: FundamentalCompetencyKey[];
@@ -332,6 +337,8 @@ export interface DailyPlan {
   closeActivities: string;
   metacognitionQuestions: string;
 
+  // Nivel Inicial Moments
+  inicialMoments?: InicialDailyMoments;
   // Additional elements
   didacticResources: string[];
   
@@ -390,6 +397,7 @@ export interface WeeklyPlan {
   
   // Attachments / Digital Resources
   attachments?: PlanAttachment[];
+  inicialData?: InicialUnitData;
   
   // Teacher & Review
   teacherId?: string;
@@ -403,6 +411,81 @@ export interface WeeklyPlan {
   reviewFeedback?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+
+// =========================================================================
+// --- MODELOS CURRICULARES OFICIALES DEL NIVEL INICIAL (MINERD) ---
+// =========================================================================
+
+export type InicialPlanningType = 
+  | 'Proyecto de Aula'
+  | 'Centro de Interés'
+  | 'Situación de Aprendizaje'
+  | 'Unidad de Aprendizaje';
+
+export type InicialDomain =
+  | 'Dominio Socioemocional'
+  | 'Dominio Artístico y Creativo'
+  | 'Dominio Psicomotor y de Salud'
+  | 'Dominio de Descubrimiento del Mundo'
+  | 'Dominio Cognitivo'
+  | 'Dominio Comunicativo'
+  | 'Dominio de Desarrollo Personal y Social'
+  | 'Dominio de Expresión y Comunicación'
+  | 'Dominio de Interacción con el Entorno';
+
+export type InicialDomainType = InicialDomain;
+
+// Cuadro de Anticipación (Preguntas generadoras con los niños)
+export interface AnticipationQuestion {
+  question: string; // ¿Qué sabemos? / ¿Qué queremos saber? / ¿Cómo lo sabremos? / ¿Quiénes nos ayudarán?
+  childrenResponses: string;
+}
+
+// Estructura de Unidad para Nivel Inicial
+export interface InicialUnitData {
+  planningType?: InicialPlanningType;
+  experienceType?: InicialPlanningType;
+  centerOfInterest?: string;
+  themeSelection: string; // Selección del tema
+  anticipationQuestions?: AnticipationQuestion[]; // Cuadro de Anticipación
+  selectedDomains: InicialDomain[]; // Dominios
+  transversalAxes?: string[]; // Ejes transversales
+  whatTheyKnow?: string[];
+  whatTheyWantToKnow?: string[];
+  howTheyWillLearn?: string[];
+  learningZonesResources?: string[];
+}
+
+// Estructura Diaria para Nivel Inicial (Momentos del Día / Rutina)
+export interface InicialDailyMoments {
+  // 1. Encuentro de Grupo (Asamblea, bienvenida, canciones, asistencia, clima, calendario, tema del día)
+  encuentroGrupo: {
+    duration: number; // minutos
+    activity: string;
+    resources: string;
+  };
+  // 2. Actividad Grupal (Literatura, Expresión Corporal, Música, Arte, Psicomotricidad)
+  actividadGrupal: {
+    name: string; // Ej: Expresión Corporal / Taller de Arte / Literatura Infantil
+    duration: number;
+    activity: string;
+    resources: string;
+  };
+  // 3. Grupo Grande (Trabajo en mesa guiado, tareas colaborativas)
+  grupoGrande: {
+    duration: number;
+    activity: string;
+    resources: string;
+  };
+  // 4. Grupo Pequeño (Atención directa y personalizada de la docente para afianzar conceptos/grafomotricidad)
+  grupoPequeno: {
+    duration: number;
+    activity: string;
+    studentNames?: string;
+    resources: string;
+  };
 }
 
 export interface LearningUnit {
@@ -420,24 +503,33 @@ export interface LearningUnit {
     studentRole: string;
     challengeQuestion: string;
     finalProduct: string;
-  };
+  } | string;
   fundamentalCompetencies: FundamentalCompetencyKey[];
   specificCompetencies: string[];
   conceptualContents: string[];
   proceduralContents: string[];
   attitudinalContents: string[];
+  contents?: {
+    conceptual: string[];
+    procedural: string[];
+    attitudinal: string[];
+  };
+  teachingStrategy?: string;
+  evaluationInstruments?: string[];
+  resources?: string[];
   achievementIndicators: string[];
   didacticalSequenceSummary: string;
   
   // Attachments / Digital Resources
   attachments?: PlanAttachment[];
+  inicialData?: InicialUnitData;
   
   // Teacher & Review
   teacherId?: string;
   teacherName?: string;
   teacherPhone?: string;
-  status: 'draft' | 'completed' | 'reviewed';
-  reviewStatus: ReviewStatus;
+  status?: 'draft' | 'completed' | 'reviewed';
+  reviewStatus?: ReviewStatus;
   reviewerName?: string;
   reviewerRole?: 'director' | 'coordinator';
   reviewedAt?: string;
@@ -459,4 +551,63 @@ export interface CurricularTopicSuggestion {
   devSuggestions: string[];
   closeSuggestions: string[];
   resourceSuggestions: string[];
+}
+
+
+// --- Sistema de Calificaciones por Período MINERD ---
+export type GradingPeriod = 'P1' | 'P2' | 'P3' | 'P4' | 'Recuperación';
+
+export interface StudentSubjectGrade {
+  studentId: string;
+  studentName: string;
+  studentRne?: string;
+  grade: string;
+  section: string;
+  subject: SubjectArea | string;
+  period: GradingPeriod;
+  teacherId?: string;
+  teacherName?: string;
+  // Calificación numérica del MINERD (0 a 100)
+  score: number;
+  literal?: 'A' | 'B' | 'C' | 'D' | '—';
+  status?: 'Aprobado' | 'En Recuperación' | 'Insuficiente' | 'Pendiente';
+  observations?: string;
+  published: boolean;
+  publishedAt?: string;
+  parentPhone?: string;
+  parentName?: string;
+  updatedAt: string;
+}
+
+
+// --- Histórico / Archivo Anual Escolar MINERD ---
+export interface SchoolYearArchive {
+  id: string; // ej: 'archive_2025-2026_14668'
+  archivedAt: string;
+  schoolYear: string; // ej: '2025-2026'
+  schoolCode: string;
+  schoolName: string;
+  summary: {
+    totalStudents: number;
+    totalTeachers: number;
+    totalDailyPlans: number;
+    totalWeeklyPlans: number;
+    totalUnits: number;
+    totalGrades: number;
+    totalPsychologyCases: number;
+  };
+  snapshot: {
+    config: SchoolConfig;
+    teachers: Teacher[];
+    coordinators: Coordinator[];
+    orientators: Orientator[];
+    students: Student[];
+    grades: StudentSubjectGrade[];
+    dailyPlans: DailyPlan[];
+    weeklyPlans: WeeklyPlan[];
+    learningUnits: LearningUnit[];
+    psychologyReports: PsychologyCaseReport[];
+    gradeAttendances: DailyGradeAttendanceSummary[];
+  };
+  notes?: string;
 }

@@ -50,12 +50,27 @@ export const AVAILABLE_TEACHER_LEVELS: TeacherLevel[] = [
 ];
 
 const AVAILABLE_GRADES = [
-  'Pre-Kínder', 'Kínder', 'Pre-Primario',
+  'Maestro del Área (Rotativo)',
+  'Párvulo', 'Pre-Kínder', 'Kínder', 'Pre-Primario',
   '1er Grado', '2do Grado', '3er Grado',
   '4to Grado', '5to Grado', '6to Grado',
-  '1er Año Secundaria', '2do Año Secundaria', '3er Año Secundaria',
-  '4to Año Secundaria', '5to Año Secundaria', '6to Año Secundaria',
+  '1ro de Secundaria', '2do de Secundaria', '3ro de Secundaria',
+  '4to de Secundaria', '5to de Secundaria', '6to de Secundaria',
   'Varios Grados / Rotativo'
+];
+
+const AVAILABLE_SUBJECT_AREAS = [
+  'Educación Física',
+  'Educación Artística',
+  'Formación Integral Humana y Religiosa',
+  'Lenguas Extranjeras (Inglés)',
+  'Lenguas Extranjeras (Francés)',
+  'Lengua Española',
+  'Matemática',
+  'Ciencias Sociales',
+  'Ciencias de la Naturaleza',
+  'Desarrollo Integral (Nivel Inicial)',
+  'Todas las Áreas Básicas (Titular de Grado)'
 ];
 
 export const TeacherManagement: React.FC<TeacherManagementProps> = ({
@@ -80,6 +95,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
   const [formEmail, setFormEmail] = useState('');
   const [formLevel, setFormLevel] = useState<TeacherLevel>('Nivel Primario Primer Ciclo');
   const [formGrades, setFormGrades] = useState<string[]>(['1er Grado']);
+  const [formArea, setFormArea] = useState<string>('Todas las Áreas Básicas (Titular de Grado)');
   const [formSections, setFormSections] = useState<string[]>(['A']);
   const [formShift, setFormShift] = useState<SchoolShift>('Ambas Tandas (Doble Tanda)');
   const [formNotes, setFormNotes] = useState('');
@@ -120,6 +136,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
     setFormEmail(t.email || '');
     setFormLevel(normalizeLevel(t.level));
     setFormGrades(t.grades && t.grades.length > 0 ? t.grades : ['1er Grado']);
+    setFormArea(t.areas?.[0] || 'Todas las Áreas Básicas (Titular de Grado)');
     setFormSections(t.sections && t.sections.length > 0 ? t.sections : ['A']);
     setFormShift(t.shift || 'Ambas Tandas (Doble Tanda)');
     setFormNotes(t.notes || '');
@@ -134,6 +151,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
     setFormEmail('');
     setFormLevel('Nivel Primario Primer Ciclo');
     setFormGrades(['1er Grado']);
+    setFormArea('Todas las Áreas Básicas (Titular de Grado)');
     setFormSections(['A']);
     setFormShift('Ambas Tandas (Doble Tanda)');
     setFormNotes('');
@@ -152,6 +170,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
       email: formEmail.trim() || `${formName.toLowerCase().replace(/[^a-z]/g, '')}@minerd.edu.do`,
       level: formLevel,
       grades: formGrades.length > 0 ? formGrades : ['1er Grado'],
+      areas: [formArea as any],
       sections: formSections.length > 0 ? formSections : ['A'],
       shift: formShift,
       notes: formNotes.trim(),
@@ -411,7 +430,14 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
                           <div className="text-xs font-bold text-slate-800">
                             {teacher.grades?.join(', ') || 'Sin grado'}
                           </div>
-                          <div className="text-[11px] text-slate-500 font-medium">
+                          {teacher.areas && teacher.areas.length > 0 && (
+                            <div className="mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-50 text-indigo-800 border border-indigo-200">
+                                {teacher.areas.join(', ')}
+                              </span>
+                            </div>
+                          )}
+                          <div className="text-[11px] text-slate-500 font-medium mt-0.5">
                             Sección: {teacher.sections?.join(', ') || 'A'}
                           </div>
                         </td>
@@ -717,17 +743,46 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
                   </select>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700 text-xs">Grado(s) Asignado(s)</label>
-                  <select
-                    value={formGrades[0] || '1er Grado'}
-                    onChange={(e) => setFormGrades([e.target.value])}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none bg-white font-semibold cursor-pointer"
-                  >
-                    {AVAILABLE_GRADES.map(g => (
-                      <option key={g} value={g}>{g}</option>
-                    ))}
-                  </select>
+                <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl">
+                  <div className="space-y-1">
+                    <label className="font-black text-indigo-950 text-xs">
+                      Grado Asignado o Maestro del Área *
+                    </label>
+                    <select
+                      value={formGrades[0] || '1er Grado'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormGrades([val]);
+                        if (val === 'Maestro del Área (Rotativo)' && formArea === 'Todas las Áreas Básicas (Titular de Grado)') {
+                          setFormArea('Educación Artística');
+                        }
+                      }}
+                      className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-black text-slate-900 cursor-pointer"
+                    >
+                      {AVAILABLE_GRADES.map(g => (
+                        <option key={g} value={g}>
+                          {g === 'Maestro del Área (Rotativo)' ? '⭐ Maestro del Área (Rotativo / Especialista)' : g}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-black text-indigo-950 text-xs">
+                      Asignatura / Área Curricular *
+                    </label>
+                    <select
+                      value={formArea}
+                      onChange={(e) => setFormArea(e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-black text-indigo-950 cursor-pointer"
+                    >
+                      {AVAILABLE_SUBJECT_AREAS.map(area => (
+                        <option key={area} value={area}>
+                          {area}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -736,7 +791,7 @@ export const TeacherManagement: React.FC<TeacherManagementProps> = ({
                     type="text"
                     value={formSections.join(', ')}
                     onChange={(e) => setFormSections(e.target.value.split(',').map(s => s.trim().toUpperCase()).filter(Boolean))}
-                    placeholder="A, B"
+                    placeholder="A, B, Todas"
                     className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none font-bold"
                   />
                 </div>

@@ -21,6 +21,9 @@ import {
   UserCheck,
   Image as ImageIcon,
   Trash2,
+  FolderArchive,
+  Archive,
+  History,
   UploadCloud,
   Loader2,
   Laptop,
@@ -57,6 +60,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [importStatus, setImportStatus] = useState<string>('');
   const [logoUploadError, setLogoUploadError] = useState<string>('');
+  
+  // Archivo de año escolar
+  const [archivesList, setArchivesList] = useState<import('../types/minerd').SchoolYearArchive[]>(() => storageService.getSchoolYearArchives());
+  const [nextYearInput, setNextYearInput] = useState<string>('2026-2027');
+  const [preserveStaffCheck, setPreserveStaffCheck] = useState<boolean>(true);
+  const [archiveNotes, setArchiveNotes] = useState<string>('');
+  const [isArchiving, setIsArchiving] = useState<boolean>(false);
+  const [archiveSuccessMsg, setArchiveSuccessMsg] = useState<string>('');
+  const [showArchiveConfirmModal, setShowArchiveConfirmModal] = useState<boolean>(false);
+  const [syncMode, setSyncModeState] = useState<'eco' | 'local_only' | 'realtime'>(() => storageService.getSyncMode());
+  const [isSyncingManual, setIsSyncingManual] = useState<boolean>(false);
+
 
   useEffect(() => {
     if (config) {
@@ -145,7 +160,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     reader.readAsText(file);
   };
 
-  const handleClearAllData = () => {
+
+  const handleArchiveSchoolYear = async () => {
+    setIsArchiving(true);
+    try {
+      const record = await storageService.archiveCurrentSchoolYear({
+        nextSchoolYear: nextYearInput.trim() || '2026-2027',
+        preserveStaff: preserveStaffCheck,
+        notes: archiveNotes
+      });
+      setArchivesList(storageService.getSchoolYearArchives());
+      setArchiveSuccessMsg(`¡Año escolar ${record.schoolYear} archivado con éxito! Se ha iniciado el ciclo ${record.snapshot.config.schoolYear || nextYearInput}.`);
+      setShowArchiveConfirmModal(false);
+      onDataReload();
+      setTimeout(() => setArchiveSuccessMsg(''), 6000);
+    } catch (err: any) {
+      alert('Error al archivar el año escolar: ' + (err?.message || 'Error desconocido'));
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
+    const handleClearAllData = () => {
     if (window.confirm('¿Está seguro de vaciar todos los datos de ejemplo y comenzar desde cero? Se limpiarán los planes, docentes, estudiantes, coordinadores y casos para ingresar los datos reales de su centro educativo.')) {
       storageService.clearAllData();
       onDataReload();
@@ -713,12 +749,100 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* TAB 6: Backup & Export */}
           {activeSettingsTab === 'backup' && (
             <div className="space-y-4 animate-fade-in">
+              {/* --- PANEL DE AUTONOMÍA LOCAL Y AHORRO DE BASE DE DATOS --- */}
+              <div className="p-4 rounded-2xl bg-emerald-950 text-white border border-emerald-700/40 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h4 className="font-extrabold text-xs sm:text-sm text-emerald-200">
+                      Motor de Autonomía de Datos (Local + Servidor Propio + Nube Compacta)
+                    </h4>
+                    <p className="text-[11px] text-emerald-100/80 mt-0.5">
+                      Evita depender de los límites diarios de Firebase guardando primero en el navegador y en el disco del servidor propio.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isSyncingManual}
+                    onClick={async () => {
+                      setIsSyncingManual(true);
+                      storageService.clearCloudQuotaPause();
+                      await storageService.syncWithServerMirror();
+                      await storageService.syncCloudOnce(undefined, true);
+                      onDataReload();
+                      setIsSyncingManual(false);
+                      setImportStatus('¡Sincronización con Servidor Propio y Nube completada!');
+                      setTimeout(() => setImportStatus(''), 4000);
+                    }}
+                    className="px-3 py-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                  >
+                    {isSyncingManual ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                    <span>Sincronizar Ahora</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      storageService.setSyncMode('eco');
+                      setSyncModeState('eco');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      syncMode === 'eco'
+                        ? 'bg-emerald-500/25 border-emerald-400 text-white'
+                        : 'bg-white/5 border-white/10 text-emerald-100/70 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="font-extrabold">⚡ Ahorro Inteligente (Recomendado)</div>
+                    <p className="text-[10px] opacity-85 mt-0.5">
+                      Usa Memoria Local + Servidor Propio y bloques compactos (98% menos consumo de Firebase).
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      storageService.setSyncMode('local_only');
+                      setSyncModeState('local_only');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      syncMode === 'local_only'
+                        ? 'bg-emerald-500/25 border-emerald-400 text-white'
+                        : 'bg-white/5 border-white/10 text-emerald-100/70 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="font-extrabold">🛡️ 100% Autónomo (Sin Firebase)</div>
+                    <p className="text-[10px] opacity-85 mt-0.5">
+                      Opera exclusivamente con el Servidor Propio y el navegador. Cero dependencia de la nube.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      storageService.setSyncMode('realtime');
+                      setSyncModeState('realtime');
+                    }}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      syncMode === 'realtime'
+                        ? 'bg-emerald-500/25 border-emerald-400 text-white'
+                        : 'bg-white/5 border-white/10 text-emerald-100/70 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="font-extrabold">☁️ Nube Continua</div>
+                    <p className="text-[10px] opacity-85 mt-0.5">
+                      Escucha en tiempo real en Firebase (solo para cuentas con plan Blaze ilimitado).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <h3 className="font-bold text-slate-900 uppercase text-[10px] tracking-wider text-slate-600">
                   Copia de Seguridad y Sincronización Local / Firebase
                 </h3>
                 <p className="text-xs text-slate-600">
-                  Puede exportar toda la base de datos de planificaciones, docentes, coordinadores y casos de orientación en un solo archivo JSON para resguardo.
+                  Puede exportar toda la base de datos de planificaciones, docentes, coordinadores, los 728+ estudiantes y casos de orientación en un solo archivo JSON para resguardo.
                 </p>
                 
                 <div className="flex flex-wrap gap-2 pt-2">
@@ -750,6 +874,104 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <Trash2 className="w-4 h-4" />
                     Vaciar y Comenzar en Limpio
                   </button>
+                </div>
+
+                {/* --- NUEVO APARTADO: ARCHIVAR AÑO ESCOLAR COMPLETO & INICIAR NUEVO CICLO --- */}
+                <div className="mt-6 pt-5 border-t border-slate-200 space-y-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <FolderArchive className="w-5 h-5 text-amber-300" />
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">
+                        Cierre y Archivo de Año Escolar Completo (MINERD)
+                      </h4>
+                      <p className="text-[11px] text-slate-600 leading-relaxed mt-0.5">
+                        Guarda una copia congelada con todo el historial del año escolar saliente (calificaciones, asistencias, planificaciones y casos de psicología) y reinicia el sistema desde cero para el nuevo año lectivo.
+                      </p>
+                    </div>
+                  </div>
+
+                  {archiveSuccessMsg && (
+                    <div className="p-3 bg-emerald-100 border border-emerald-300 text-emerald-900 rounded-xl font-bold text-xs flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-700 shrink-0" />
+                      <span>{archiveSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white p-3.5 rounded-xl border border-slate-200 text-xs">
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Año Escolar a Cerrar / Archivar:</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={formData.schoolYear || '2025-2026'}
+                        className="w-full p-2 bg-slate-100 border border-slate-300 rounded-lg font-black text-slate-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Nuevo Año Escolar Entrante:</label>
+                      <input
+                        type="text"
+                        value={nextYearInput}
+                        onChange={(e) => setNextYearInput(e.target.value)}
+                        placeholder="Ej. 2026-2027"
+                        className="w-full p-2 bg-white border border-indigo-300 rounded-lg font-black text-indigo-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                        <input
+                          type="checkbox"
+                          checked={preserveStaffCheck}
+                          onChange={(e) => setPreserveStaffCheck(e.target.checked)}
+                          className="w-4 h-4 text-indigo-600 rounded cursor-pointer"
+                        />
+                        <span>Conservar plantilla de docentes y coordinadores para el próximo año</span>
+                      </label>
+                      <span className="block text-[10px] text-slate-500 ml-6 mt-0.5">
+                        Si está marcado, solo se limpian los planes diarios, calificaciones, asistencias y estudiantes, manteniendo sus maestros registrados.
+                      </span>
+                    </div>
+
+                    <div className="sm:col-span-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowArchiveConfirmModal(true)}
+                        className="w-full py-2.5 bg-gradient-to-r from-indigo-700 to-blue-800 hover:from-indigo-600 hover:to-blue-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
+                      >
+                        <Archive className="w-4 h-4 text-amber-300" />
+                        <span>Archivar Año Escolar {formData.schoolYear || '2025-2026'} e Iniciar Nuevo Año</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Historial de Años Archivados */}
+                  {archivesList.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <h5 className="font-extrabold text-[11px] text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5 text-indigo-600" />
+                        Histórico de Años Escolares Archivados ({archivesList.length}):
+                      </h5>
+                      <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                        {archivesList.map(arch => (
+                          <div key={arch.id} className="p-2.5 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                              <span className="font-black text-slate-900">Año Lectivo {arch.schoolYear}</span>
+                              <span className="text-[10px] text-slate-500 block">
+                                Archivado el {new Date(arch.archivedAt).toLocaleDateString('es-DO')} • {arch.summary.totalStudents} estudiantes, {arch.summary.totalGrades} notas, {arch.summary.totalDailyPlans} planes
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 text-[10px] font-bold rounded-full border border-indigo-200">
+                              Resguardado
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {importStatus && (
@@ -847,6 +1069,53 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </button>
           </div>
+
+      {/* Modal de Confirmación de Cierre y Archivo Anual */}
+      {showArchiveConfirmModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-200 shadow-2xl p-6 space-y-4 animate-fade-in">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-700 border border-amber-400/40 flex items-center justify-center">
+              <FolderArchive className="w-6 h-6 text-amber-600" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-900">
+                ¿Confirmar Archivo del Año Escolar {formData.schoolYear || '2025-2026'}?
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Esta acción creará una copia histórica permanente de todas las planificaciones, calificaciones y asistencias. Luego, <strong>se limpiarán los datos operativos</strong> para dejar la aplicación en blanco para el nuevo ciclo <strong>{nextYearInput}</strong>.
+              </p>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 font-semibold space-y-1">
+              <p>• Los datos archivados quedarán resguardados de forma permanente.</p>
+              <p>• El nuevo año escolar se configurará como: <strong>{nextYearInput}</strong>.</p>
+              <p>• Plantilla de docentes: <strong>{preserveStaffCheck ? 'Se conservará intacta' : 'Se reiniciará'}</strong>.</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isArchiving}
+                onClick={() => setShowArchiveConfirmModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl cursor-pointer"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                disabled={isArchiving}
+                onClick={handleArchiveSchoolYear}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+              >
+                {isArchiving ? 'Archivando y Reiniciando...' : 'Sí, Archivar y Reiniciar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
         </form>
       </div>
     </div>

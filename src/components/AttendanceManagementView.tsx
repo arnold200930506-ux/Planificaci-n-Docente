@@ -62,6 +62,10 @@ interface AttendanceManagementViewProps {
 }
 
 const GRADES = [
+  'Párvulo',
+  'Pre-Kínder',
+  'Kínder',
+  'Pre-Primario',
   'Nivel Inicial (Pre-Kínder / Kínder / Pre-Primario)',
   '1er Grado',
   '2do Grado',
@@ -74,7 +78,7 @@ const GRADES = [
   '3er Grado Secundaria (9no)'
 ];
 
-const SECTIONS = ['A', 'B', 'C', 'D', 'E'];
+const SECTIONS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
 const SHIFTS: SchoolShift[] = [
   'Tanda Matutina (8:00 AM - 12:00 PM)',
@@ -97,6 +101,7 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
   const [selectedShift, setSelectedShift] = useState<SchoolShift>('Tanda Matutina (8:00 AM - 12:00 PM)');
   const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showAllSchoolStudents, setShowAllSchoolStudents] = useState<boolean>(false);
 
   // Local data states
   const [allStudents, setAllStudents] = useState<Student[]>(() => storageService.getStudents());
@@ -149,11 +154,51 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
   const [waModalType, setWaModalType] = useState<'absent' | 'late' | 'citation'>('absent');
   const [waCustomMessage, setWaCustomMessage] = useState('');
 
-  // Sync students from storage
+  // Sync students from storage and server mirror
   const reloadStudents = () => {
     const list = storageService.getStudents();
     setAllStudents(list);
   };
+
+  useEffect(() => {
+    reloadStudents();
+    storageService.syncWithServerMirror({
+      onStudents: (synced) => {
+        setAllStudents(synced);
+      }
+    });
+  }, []);
+
+  // Summary breakdown by Tanda and active sections
+  const shiftAndSectionSummary = useMemo(() => {
+    let matutinaCount = 0;
+    let vespertinaCount = 0;
+    const sectionMap = new Map<string, { grade: string; section: string; shift: SchoolShift; count: number }>();
+
+    allStudents.forEach((s) => {
+      if (s.shift && s.shift.toLowerCase().includes('vespertina')) {
+        vespertinaCount++;
+      } else {
+        matutinaCount++;
+      }
+      const key = `${s.grade}__${s.section.toUpperCase()}`;
+      if (!sectionMap.has(key)) {
+        sectionMap.set(key, {
+          grade: s.grade,
+          section: s.section.toUpperCase(),
+          shift: s.shift || 'Tanda Matutina (8:00 AM - 12:00 PM)',
+          count: 0
+        });
+      }
+      sectionMap.get(key)!.count++;
+    });
+
+    return {
+      matutinaCount,
+      vespertinaCount,
+      sections: Array.from(sectionMap.values()).sort((a, b) => a.grade.localeCompare(b.grade))
+    };
+  }, [allStudents]);
 
   // Filtered students for current grade & section
   const currentClassStudents = useMemo(() => {
@@ -308,6 +353,58 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
     }
   };
 
+  // Delete all students in current selected section
+  // Eliminar todos los registros de estudiantes (incluyendo registros desfasados o huérfanos)
+  const handleClearAllStudents = async () => {
+    const totalCount = allStudents.length;
+    if (totalCount === 0) {
+      // Incluso si allStudents en memoria dice 0, ejecutar la purga por si hay claves residuales
+      await storageService.clearAllStudents();
+      reloadStudents();
+      alert('Se ha ejecutado la limpieza profunda de la base de datos de estudiantes.');
+      return;
+    }
+
+    const first = confirm(
+      `¿Desea ELIMINAR COMPLETAMENTE todos los ${totalCount} estudiantes registrados en la escuela?\n\nEsta opción borrará los registros huérfanos y dejará la matrícula en 0 para que puedas cargar tu padrón escolar limpio.`
+    );
+    if (!first) return;
+
+    await storageService.clearAllStudents();
+    reloadStudents();
+    alert('Se han eliminado todos los registros de estudiantes de la escuela correctamente.');
+  };
+
+
+  const handleDeleteCurrentSection = () => {
+    const studentsInSection = allStudents.filter(
+      s => s.grade === selectedGrade && s.section.toUpperCase() === selectedSection.toUpperCase()
+    );
+
+    if (studentsInSection.length === 0) {
+      alert(`No hay estudiantes registrados en ${selectedGrade} "${selectedSection}".`);
+      return;
+    }
+
+    const confirmFirst = confirm(
+      `¿Está seguro de eliminar TODOS los datos de los ${studentsInSection.length} estudiantes de ${selectedGrade} "${selectedSection}"?\n\nEsta acción eliminará la lista de esta sección para permitir cargar un nuevo padrón o corregir el registro.`
+    );
+
+    if (!confirmFirst) return;
+
+    // Second confirmation safety check to prevent accidental loss
+    const confirmSecond = confirm(
+      `Confirmación final: Escriba o confirme que desea borrar permanentemente a los ${studentsInSection.length} alumnos de ${selectedGrade} "${selectedSection}".`
+    );
+
+    if (!confirmSecond) return;
+
+    const countDeleted = storageService.deleteStudentsBySection(selectedGrade, selectedSection);
+    reloadStudents();
+    alert(`Se han eliminado correctamente ${countDeleted} estudiantes de ${selectedGrade} "${selectedSection}".`);
+  };
+
+
   // Handle File Input for Bulk Upload (Excel / PDF)
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -350,22 +447,25 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
       id: `std-imp-${Date.now()}-${idx}`,
       number: c.number || idx + 1,
       name: c.name,
-      gender: c.gender || 'M',
+      gender: (c.gender === 'F' || c.gender === 'Femenino') ? 'F' : 'M',
       rne: c.rne || `RNE-${Math.floor(100000 + Math.random() * 900000)}`,
-      grade: importTargetGrade,
-      section: importTargetSection,
-      shift: importTargetShift,
+      grade: c.grade || importTargetGrade,
+      section: (c.section || importTargetSection).toUpperCase(),
+      shift: c.shift || importTargetShift,
       parentName: c.parentName || undefined,
       parentPhone: c.parentPhone || undefined
     }));
 
     const result = storageService.importStudentsInBulk(studentsToImport);
     reloadStudents();
-    setSelectedGrade(importTargetGrade);
-    setSelectedSection(importTargetSection);
-    setSelectedShift(importTargetShift);
+    const firstImported = studentsToImport[0];
+    if (firstImported) {
+      setSelectedGrade(firstImported.grade);
+      setSelectedSection(firstImported.section);
+      setSelectedShift(firstImported.shift);
+    }
 
-    alert(`¡Éxito! Se importaron ${result.added} nuevos estudiantes (${result.updated} actualizados) para ${importTargetGrade} "${importTargetSection}".`);
+    alert(`¡Éxito! Se procesaron ${studentsToImport.length} estudiantes (${result.added} nuevos, ${result.updated} actualizados). Total en matrícula: ${result.total} estudiantes.`);
     setIsUploadModalOpen(false);
     setParsedCandidates([]);
     setPasteText('');
@@ -500,6 +600,102 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
           </button>
         </div>
       </div>
+
+      {/* Resumen Rápido de Matrícula por Tanda (Matutina / Vespertina) y Secciones con Alumnos */}
+      <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <span className="font-extrabold text-slate-900 dark:text-slate-100">
+              Matrícula Total en esta sesión: <strong className="font-mono tabular-nums text-emerald-700 dark:text-emerald-400">{allStudents.length} estudiantes</strong>
+            </span>
+            <span className="text-slate-400">·</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              Tanda Matutina: <strong className="font-mono tabular-nums">{shiftAndSectionSummary.matutinaCount}</strong>
+            </span>
+            <span className="text-slate-400">·</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300">
+              Tanda Vespertina: <strong className="font-mono tabular-nums">{shiftAndSectionSummary.vespertinaCount}</strong>
+            </span>
+          </div>
+          {allStudents.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowAllSchoolStudents(true);
+                setActiveTab('roster');
+              }}
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+            >
+              Ver padrón completo ({allStudents.length}) →
+            </button>
+          )}
+        </div>
+
+        {shiftAndSectionSummary.sections.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-100 dark:border-slate-800">
+            <span className="text-[11px] font-bold text-slate-500 mr-1">Secciones con matrícula activa:</span>
+            {shiftAndSectionSummary.sections.map((sec) => {
+              const isSelected = selectedGrade === sec.grade && selectedSection.toUpperCase() === sec.section;
+              return (
+                <button
+                  key={`${sec.grade}_${sec.section}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedGrade(sec.grade);
+                    setSelectedSection(sec.section);
+                    setShowAllSchoolStudents(false);
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer font-mono tabular-nums ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  {sec.grade} "{sec.section}" ({sec.count})
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* BANNER DE DETECCIÓN Y PURGA DE REGISTROS HUÉRFANOS */}
+      {allStudents.length > 0 && currentClassStudents.length === 0 && (
+        <div className="p-4 bg-amber-500/15 border-2 border-amber-400 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-fade-in">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-lg shrink-0">
+              ⚠️
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-amber-950 uppercase tracking-tight">
+                Hay {allStudents.length} estudiantes guardados en la base de datos
+              </h4>
+              <p className="text-[11px] text-amber-900 leading-relaxed font-medium">
+                Están guardados con nombres de grados o secciones anteriores (ej. de prueba o importaciones pasadas) y por eso no salen en {selectedGrade} "{selectedSection}".
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAllSchoolStudents(true);
+                setActiveTab('roster');
+              }}
+              className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-800 border border-amber-300 rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+            >
+              👁️ Ver los {allStudents.length}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearAllStudents}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-sm cursor-pointer"
+            >
+              🗑️ Purgar los {allStudents.length} Ahora
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Subtabs & Action Bar */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
@@ -882,15 +1078,49 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
                 className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
               />
             </div>
-
             <div className="flex items-center gap-2">
               <button
                 type="button"
+                onClick={() => setShowAllSchoolStudents(!showAllSchoolStudents)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                  showAllSchoolStudents
+                    ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                }`}
+                title="Mostrar todos los alumnos registrados en el centro sin importar la sección seleccionada"
+              >
+                {showAllSchoolStudents ? '👁️ Mostrando Todos (' + allStudents.length + ')' : '🔍 Filtrar por Sección Actual'}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
                 onClick={() => handleOpenStudentModal()}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
                 <span>Nuevo Estudiante</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteCurrentSection}
+                title={`Eliminar todos los estudiantes de ${selectedGrade} "${selectedSection}"`}
+                className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 hover:border-rose-300 rounded-xl text-xs font-extrabold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                <span>Eliminar Sección ({selectedGrade} "{selectedSection}")</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleClearAllStudents}
+                title="Eliminar absolutamente todos los estudiantes de la escuela y purgar registros fantasmas"
+                className="px-3 py-2 bg-slate-900 hover:bg-rose-950 text-white rounded-xl text-xs font-black transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                <span>Vaciar Toda la Matrícula ({allStudents.length})</span>
               </button>
             </div>
           </div>
@@ -912,13 +1142,19 @@ export const AttendanceManagementView: React.FC<AttendanceManagementViewProps> =
                 <tbody className="divide-y divide-slate-100">
                   {allStudents
                     .filter(s => {
-                      if (!searchQuery) return s.grade === selectedGrade && s.section.toUpperCase() === selectedSection.toUpperCase();
+                      if (showAllSchoolStudents) return true;
+                      if (!searchQuery) {
+                        const gradeMatch = s.grade?.trim().toLowerCase() === selectedGrade?.trim().toLowerCase();
+                        const secMatch = s.section?.trim().toUpperCase() === selectedSection?.trim().toUpperCase();
+                        return gradeMatch && secMatch;
+                      }
                       const q = searchQuery.toLowerCase();
                       return (
-                        s.name.toLowerCase().includes(q) ||
+                        s.name?.toLowerCase().includes(q) ||
                         s.rne?.toLowerCase().includes(q) ||
                         s.parentName?.toLowerCase().includes(q) ||
-                        s.grade.toLowerCase().includes(q)
+                        s.grade?.toLowerCase().includes(q) ||
+                        s.section?.toLowerCase().includes(q)
                       );
                     })
                     .map((std, idx) => (

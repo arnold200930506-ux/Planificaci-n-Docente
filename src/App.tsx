@@ -1,3 +1,4 @@
+import { PanelLeftOpen } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import React, { useState, useEffect } from 'react';
 import { SidebarNav, ActiveTab } from './components/SidebarNav';
@@ -5,6 +6,7 @@ import { ManagementDashboard } from './components/ManagementDashboard';
 import { CoordinatorsManagement } from './components/CoordinatorsManagement';
 import { PsychologyGuidance } from './components/PsychologyGuidance';
 import { TeacherManagement } from './components/TeacherManagement';
+import { GradingManagementView } from './components/GradingManagementView';
 import { AttendanceManagementView } from './components/AttendanceManagementView';
 import { Dashboard } from './components/Dashboard';
 import { DailyPlanner } from './components/DailyPlanner';
@@ -38,6 +40,24 @@ export default function App() {
   // Free teacher dashboard as primary entry
   const [activeTab, setActiveTab] = useState<ActiveTab>('daily');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('minerd_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleSidebarCollapse = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('minerd_sidebar_collapsed', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
 
   // Authentication & Lock State for Director/Coordinators
   const [isUnlocked, setIsUnlocked] = useState<boolean>(() => authService.isUnlocked());
@@ -57,6 +77,23 @@ export default function App() {
   // Active items being edited or printed
   const [editingDailyPlan, setEditingDailyPlan] = useState<DailyPlan | null>(null);
   const [editingWeeklyPlan, setEditingWeeklyPlan] = useState<WeeklyPlan | null>(null);
+  const [draftUnitFromMalla, setDraftUnitFromMalla] = useState<Partial<LearningUnit> | null>(null);
+
+  // Dark / Light Mode state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('minerd_theme_mode') === 'dark';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', isDarkMode);
+    try {
+      localStorage.setItem('minerd_theme_mode', isDarkMode ? 'dark' : 'light');
+    } catch {}
+  }, [isDarkMode]);
   
   // Print exporter selection state
   const [printType, setPrintType] = useState<'daily' | 'weekly' | 'unit'>('daily');
@@ -436,7 +473,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <div className="min-h-screen bg-slate-50 flex flex-col lg:flex-row font-sans text-slate-800">
+      <div className="app-shell min-h-screen bg-slate-50 flex flex-col lg:flex-row font-sans text-slate-800">
       
       {/* Vertical Left Sidebar Navigation */}
       <SidebarNav
@@ -453,33 +490,71 @@ export default function App() {
         isUnlocked={isUnlocked}
         onRequestUnlock={handleRequestUnlock}
         onLockSession={handleLockSession}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapse}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(prev => !prev)}
       />
 
+      {/* Botón flotante para reabrir la barra de funciones cuando esté cerrada */}
+      {isSidebarCollapsed && (
+        <button
+          type="button"
+          onClick={toggleSidebarCollapse}
+          className="no-print hidden lg:flex fixed top-4 left-4 z-40 p-2.5 bg-slate-900/90 hover:bg-slate-950 text-white rounded-2xl shadow-xl border border-slate-700/80 backdrop-blur-md items-center gap-2 text-xs font-bold transition-all hover:scale-105 cursor-pointer animate-fade-in"
+          title="Abrir barra de funciones"
+        >
+          <PanelLeftOpen className="w-4 h-4 text-amber-300" />
+          <span>Abrir Menú</span>
+        </button>
+      )}
+
       {/* Main Content Workspace to the Right of Sidebar */}
-      <div className="flex-1 lg:pl-72 sm:lg:pl-80 flex flex-col min-w-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+      <div className={`app-workspace flex-1 transition-all duration-200 flex flex-col min-w-0 pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] ${
+        isSidebarCollapsed ? 'lg:pl-0' : 'lg:pl-72 sm:lg:pl-80'
+      }`}>
         
         {/* Banner de Diagnóstico de Inicialización Firebase / Storage */}
         {initError && (
-          <div className="no-print mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 flex items-start gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
-              <span className="font-bold text-xs">⚠️</span>
+          <div className="no-print mx-4 sm:mx-6 lg:mx-8 mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center shrink-0">
+                <span className="font-bold text-xs">⚠️</span>
+              </div>
+              <div className="flex-1 text-xs">
+                <p className="font-bold text-amber-950 dark:text-amber-100">
+                  Respaldo Local y Espejo del Servidor Activos ({initError.scope.toUpperCase()})
+                </p>
+                <p className="text-amber-800 dark:text-amber-200/90 mt-0.5">
+                  {initError.message.includes('Quota') || initError.message.includes('resource-exhausted')
+                    ? 'La base de datos gratuita de Firebase alcanzó su límite diario de lecturas gratuitas (Free daily read units). Ningún dato se ha borrado: su información está intacta y se sincronizará automáticamente al reiniciarse la cuota diaria.'
+                    : initError.message}
+                </p>
+                <p className="text-[10px] text-amber-700 dark:text-amber-300/80 font-mono mt-1">
+                  Registrado a las {initError.timestamp} • Guardado triple activo (Navegador + Servidor + Nube).
+                </p>
+              </div>
             </div>
-            <div className="flex-1 text-xs">
-              <p className="font-bold text-amber-950">Aviso de Inicialización de Datos ({initError.scope.toUpperCase()})</p>
-              <p className="text-amber-800 mt-0.5">{initError.message}</p>
-              <p className="text-[10px] text-amber-700 font-mono mt-1">Registrado a las {initError.timestamp} • Operando con copia local de contingencia.</p>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-xs font-bold text-white bg-amber-700 hover:bg-amber-800 px-3 py-1.5 rounded-xl cursor-pointer transition-colors"
+              >
+                Copia de Seguridad
+              </button>
+              <button
+                type="button"
+                onClick={() => setInitError(null)}
+                className="text-xs font-bold text-amber-800 dark:text-amber-200 hover:text-amber-950 px-2.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
+              >
+                Ocultar
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setInitError(null)}
-              className="text-xs font-bold text-amber-800 hover:text-amber-950 px-2 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 cursor-pointer"
-            >
-              Entendido
-            </button>
           </div>
         )}
 
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <main className="app-content flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
         {/* --- RESTRICTED TAB 1: Panel de Supervisión Directiva & Coordinación --- */}
         {activeTab === 'management' && (
@@ -512,6 +587,10 @@ export default function App() {
             <CoordinatorsManagement
               coordinators={coordinators}
               schoolConfig={schoolConfig}
+              teachers={teachers}
+              dailyPlans={dailyPlans}
+              weeklyPlans={weeklyPlans}
+              learningUnits={learningUnits}
               onSaveCoordinator={handleSaveCoordinator}
               onDeleteCoordinator={handleDeleteCoordinator}
             />
@@ -587,6 +666,9 @@ export default function App() {
           />
         )}
 
+        {/* (Apartado de Calificaciones y Boletines removido a solicitud del usuario) */}
+
+
         {/* --- RESTRICTED TAB: Dashboard Resumen General (Dirección / Coordinación) --- */}
         {activeTab === 'dashboard' && (
           authService.canAccessTab('dashboard') ? (
@@ -657,16 +739,39 @@ export default function App() {
           <LearningUnitPlanner
             units={learningUnits}
             schoolConfig={schoolConfig}
+            teachers={teachers}
+            initialDraftUnit={draftUnitFromMalla}
+            onClearDraftUnit={() => setDraftUnitFromMalla(null)}
+            onSave={handleSaveUnit}
             onSaveUnit={handleSaveUnit}
+            onDelete={handleDeleteUnit}
             onDeleteUnit={handleDeleteUnit}
+            onPrint={(id) => handlePrintPlan('unit', id)}
             onPrintUnit={(id) => handlePrintPlan('unit', id)}
           />
         )}
 
-        {/* --- FREE TEACHER TAB 9: Banco Curricular MINERD --- */}
+        {/* --- FREE TEACHER TAB 9: Banco Curricular MINERD (Adecuación Curricular) --- */}
         {activeTab === 'curriculum' && (
           <CurriculumBrowser
             onSelectTopicForNewPlan={handleSelectTopicForNewPlan}
+            onCreateUnitFromAdecuacion={(item) => {
+              setDraftUnitFromMalla({
+                title: item.unitTheme,
+                grade: item.grade,
+                level: item.level,
+                area: item.area,
+                specificCompetencies: item.specificCompetencies.map(c => `${c.title}: ${c.description}`),
+                contents: {
+                  conceptual: item.conceptualContents,
+                  procedural: item.proceduralContents,
+                  attitudinal: item.attitudinalContents
+                },
+                achievementIndicators: item.achievementIndicators,
+                didacticalSequenceSummary: `Inicio: ${item.startSuggestions.join(' ')}\nDesarrollo: ${item.devSuggestions.join(' ')}\nCierre: ${item.closeSuggestions.join(' ')}`
+              });
+              setActiveTab('units');
+            }}
           />
         )}
 
@@ -686,23 +791,23 @@ export default function App() {
             onBack={() => setActiveTab('daily')}
           />
         )}
-        {/* Institutional Authorship & License Footer */}
+        {/* Institutional Footer */}
         <footer className="no-print mt-12 py-6 px-4 border-t border-slate-200 text-center text-xs text-slate-500 bg-white/60 backdrop-blur-xs rounded-2xl max-w-7xl mx-auto shadow-xs space-y-2">
           <div className="flex flex-wrap items-center justify-center gap-3 text-slate-600 font-medium">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold">
-              Escuela Dr. José Francisco Peña Gómez (Código SIGERD: 14668)
+              {schoolConfig.schoolName} (Código SIGERD: {schoolConfig.schoolCode})
             </span>
             <span>•</span>
-            <span className="font-bold text-slate-800">
-              Desarrollado y Diseñado por: Licdo. Arnold Javier Sanchez
+            <span className="text-slate-600 font-semibold">
+              Distrito Educativo {schoolConfig.district}
             </span>
             <span>•</span>
             <span className="text-slate-500">
-              Distrito Educativo 12-01 (Higüey)
+              {schoolConfig.regional}
             </span>
           </div>
           <p className="text-[11px] text-slate-400">
-            © {new Date().getFullYear()} Licdo. Arnold Javier Sanchez. Todos los derechos reservados. Sistema de Planificación Curricular bajo Diseño por Competencias del MINERD. Software Registrado y Protegido.
+            Sistema de Planificación Curricular bajo Diseño por Competencias • MINERD República Dominicana
           </p>
         </footer>
       </main>

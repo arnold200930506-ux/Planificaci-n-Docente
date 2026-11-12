@@ -1,0 +1,55 @@
+name: Release Windows Executable (.exe)
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: 1. Descargar repositorio
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 2. Configurar entorno Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 3. Validar etiqueta y establecer versión
+        id: version_check
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "La etiqueta debe tener el formato vX.Y.Z (recibido: $RELEASE_TAG)" >&2
+            exit 1
+          fi
+
+          VERSION="${RELEASE_TAG#v}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: 4. Instalar dependencias bloqueadas
+        run: npm ci
+
+      - name: 5. Compilar frontend Vite
+        run: npm run build
+
+      - name: 6. Compilar el servidor local de Electron
+        run: npm run build:desktop-server
+
+      - name: 7. Empaquetar y publicar instalador NSIS y metadatos
+        run: npm exec electron-builder -- --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -26,6 +26,48 @@ export interface ParsedStudentCandidate {
 /**
  * Parses an Excel or CSV file buffer and extracts student records
  */
+function normalizeGradeString(rawGrade: string, fallbackGrade: string): string {
+  const g = rawGrade.trim().toLowerCase();
+  if (!g) return fallbackGrade;
+  if (g.includes('parvulo') || g.includes('párvulo')) return 'Párvulo';
+  if (g.includes('pre-kinder') || g.includes('pre-kínder') || g.includes('prekinder')) return 'Pre-Kínder';
+  if (g.includes('pre-primario') || g.includes('preprimario') || g.includes('pre primario')) return 'Pre-Primario';
+  if (g.includes('kinder') || g.includes('kínder')) return 'Kínder';
+  if (g.includes('inicial')) return 'Nivel Inicial (Pre-Kínder / Kínder / Pre-Primario)';
+  if (g.includes('7mo') || (g.includes('1') && g.includes('sec'))) return '1er Grado Secundaria (7mo)';
+  if (g.includes('8vo') || (g.includes('2') && g.includes('sec'))) return '2do Grado Secundaria (8vo)';
+  if (g.includes('9no') || (g.includes('3') && g.includes('sec'))) return '3er Grado Secundaria (9no)';
+  if (g.startsWith('1') || g.includes('1ro') || g.includes('1er') || g.includes('primero')) return '1er Grado';
+  if (g.startsWith('2') || g.includes('2do') || g.includes('segundo')) return '2do Grado';
+  if (g.startsWith('3') || g.includes('3ro') || g.includes('3er') || g.includes('tercero')) return '3er Grado';
+  if (g.startsWith('4') || g.includes('4to') || g.includes('cuarto')) return '4to Grado';
+  if (g.startsWith('5') || g.includes('5to') || g.includes('quinto')) return '5to Grado';
+  if (g.startsWith('6') || g.includes('6to') || g.includes('sexto')) return '6to Grado';
+  return rawGrade.trim();
+}
+
+function inferGradeAndSectionFromLabel(
+  label: string,
+  defaultGrade: string,
+  defaultSection: string
+): { grade: string; section: string } {
+  const clean = label.trim();
+  if (!clean) return { grade: defaultGrade, section: defaultSection };
+
+  // Detect section letter at end e.g. "1ro A", "4to Grado - B", "Pre-Primario C"
+  const secMatch = clean.match(/(?:secci[oó]n\s*|[-–_\s]+)([A-F])$/i);
+  const detectedSection = secMatch ? secMatch[1].toUpperCase() : defaultSection;
+  const detectedGrade = normalizeGradeString(clean, defaultGrade);
+
+  return {
+    grade: detectedGrade,
+    section: detectedSection
+  };
+}
+
+/**
+ * Parses an Excel or CSV file buffer and extracts student records across ALL sheets (supports 728+ students across grades & sections)
+ */
 export function parseStudentsFromExcel(
   dataBuffer: ArrayBuffer,
   defaultGrade: string = '1er Grado',
@@ -33,139 +75,201 @@ export function parseStudentsFromExcel(
   defaultShift: SchoolShift = 'Tanda Matutina (8:00 AM - 12:00 PM)'
 ): ParsedStudentCandidate[] {
   const workbook = XLSX.read(dataBuffer, { type: 'array' });
-  const firstSheetName = workbook.SheetNames[0];
-  const worksheet = workbook.Sheets[firstSheetName];
-  
-  // Convert to JSON array of objects
-  const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-  if (!rawRows || rawRows.length === 0) return [];
-
   const candidates: ParsedStudentCandidate[] = [];
 
-  // Find header row or analyze columns
-  let headerIndex = -1;
-  let nameCol = -1;
-  let numberCol = -1;
-  let rneCol = -1;
-  let genderCol = -1;
-  let parentCol = -1;
-  let phoneCol = -1;
-  let gradeCol = -1;
-  let sectionCol = -1;
+  for (const sheetName of workbook.SheetNames) {
+    const worksheet = workbook.Sheets[sheetName];
+    if (!worksheet) continue;
 
-  for (let r = 0; r < Math.min(rawRows.length, 10); r++) {
-    const row = rawRows[r];
-    if (Array.isArray(row)) {
-      row.forEach((cellVal: any, colIdx: number) => {
-        const str = String(cellVal).trim().toLowerCase();
-        if (str.includes('nombre') || str.includes('estudiante') || str.includes('alumno') || str.includes('nombres y apellidos')) {
-          nameCol = colIdx;
-          headerIndex = r;
-        }
-        if (str === 'no.' || str === 'no' || str === '#' || str.includes('numero') || str.includes('orden')) {
-          numberCol = colIdx;
-        }
-        if (str.includes('rne') || str.includes('matricula') || str.includes('cedula') || str.includes('id')) {
-          rneCol = colIdx;
-        }
-        if (str.includes('sexo') || str.includes('genero') || str === 's' || str === 'g') {
-          genderCol = colIdx;
-        }
-        if (str.includes('padre') || str.includes('tutor') || str.includes('madre') || str.includes('representante')) {
-          parentCol = colIdx;
-        }
-        if (str.includes('telefono') || str.includes('celular') || str.includes('contacto') || str.includes('whatsapp') || str.includes('tel')) {
-          phoneCol = colIdx;
-        }
-        if (str.includes('grado') || str.includes('curso')) {
-          gradeCol = colIdx;
-        }
-        if (str.includes('seccion') || str.includes('sección') || str === 'sec') {
-          sectionCol = colIdx;
-        }
-      });
-      if (nameCol >= 0) break;
-    }
-  }
+    const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    if (!rawRows || rawRows.length === 0) continue;
 
-  const startRow = headerIndex >= 0 ? headerIndex + 1 : 0;
+    // Infer sheet-level grade/section if workbook has multiple sheets or descriptive sheet name
+    const sheetInferred = inferGradeAndSectionFromLabel(
+      workbook.SheetNames.length > 1 ? sheetName : '',
+      defaultGrade,
+      defaultSection
+    );
 
-  for (let r = startRow; r < rawRows.length; r++) {
-    const row = rawRows[r];
-    if (!Array.isArray(row) || row.length === 0) continue;
+    let currentBlockGrade = sheetInferred.grade;
+    let currentBlockSection = sheetInferred.section;
 
-    let candidateName = '';
-    let candidateNumber: number | undefined;
-    let candidateRne = '';
-    let candidateGender: 'M' | 'F' | undefined;
-    let candidateParent = '';
-    let candidatePhone = '';
-    let candidateGrade = defaultGrade;
-    let candidateSection = defaultSection;
+    // Find header row or analyze columns
+    let headerIndex = -1;
+    let nameCol = -1;
+    let numberCol = -1;
+    let rneCol = -1;
+    let genderCol = -1;
+    let parentCol = -1;
+    let phoneCol = -1;
+    let gradeCol = -1;
+    let sectionCol = -1;
 
-    if (nameCol >= 0 && row[nameCol]) {
-      candidateName = String(row[nameCol]).trim();
-    } else {
-      // Look for the longest text string in the row that resembles a person's name
-      for (const cell of row) {
-        const val = String(cell).trim();
-        if (val.length > 3 && isNaN(Number(val)) && !val.includes('@') && !val.toLowerCase().includes('total')) {
-          candidateName = val;
-          break;
+    for (let r = 0; r < Math.min(rawRows.length, 20); r++) {
+      const row = rawRows[r];
+      if (Array.isArray(row)) {
+        const joinedRow = row.map((c: any) => String(c).trim()).filter(Boolean).join(' ');
+        if (
+          joinedRow &&
+          (joinedRow.toLowerCase().includes('grado') ||
+            joinedRow.toLowerCase().includes('pre-primario') ||
+            joinedRow.toLowerCase().includes('kinder')) &&
+          row.filter((c: any) => String(c).trim() !== '').length <= 3
+        ) {
+          const blockInfo = inferGradeAndSectionFromLabel(joinedRow, currentBlockGrade, currentBlockSection);
+          currentBlockGrade = blockInfo.grade;
+          currentBlockSection = blockInfo.section;
         }
+
+        row.forEach((cellVal: any, colIdx: number) => {
+          const str = String(cellVal).trim().toLowerCase();
+          if (
+            str.includes('nombre') ||
+            str.includes('estudiante') ||
+            str.includes('alumno') ||
+            str.includes('nombres y apellidos') ||
+            str.includes('apellidos')
+          ) {
+            if (nameCol === -1) nameCol = colIdx;
+            headerIndex = r;
+          }
+          if (str === 'no.' || str === 'no' || str === '#' || str.includes('numero') || str.includes('orden')) {
+            numberCol = colIdx;
+          }
+          if (str.includes('rne') || str.includes('matricula') || str.includes('cedula') || str.includes('id') || str.includes('sigerd')) {
+            rneCol = colIdx;
+          }
+          if (str.includes('sexo') || str.includes('genero') || str === 's' || str === 'g') {
+            genderCol = colIdx;
+          }
+          if (str.includes('padre') || str.includes('tutor') || str.includes('madre') || str.includes('representante')) {
+            parentCol = colIdx;
+          }
+          if (str.includes('telefono') || str.includes('celular') || str.includes('contacto') || str.includes('whatsapp') || str.includes('tel')) {
+            phoneCol = colIdx;
+          }
+          if (str.includes('grado') || str.includes('curso') || str.includes('nivel')) {
+            gradeCol = colIdx;
+          }
+          if (str.includes('seccion') || str.includes('sección') || str === 'sec') {
+            sectionCol = colIdx;
+          }
+        });
+        if (nameCol >= 0) break;
       }
     }
 
-    // Skip empty or header-like entries
-    if (!candidateName || candidateName.length < 2 || candidateName.toLowerCase().includes('total estudiantes') || candidateName.toLowerCase().includes('firma')) {
-      continue;
-    }
+    const startRow = headerIndex >= 0 ? headerIndex + 1 : 0;
 
-    if (numberCol >= 0 && row[numberCol] && !isNaN(Number(row[numberCol]))) {
-      candidateNumber = Number(row[numberCol]);
-    } else {
-      candidateNumber = candidates.length + 1;
-    }
+    for (let r = startRow; r < rawRows.length; r++) {
+      const row = rawRows[r];
+      if (!Array.isArray(row) || row.length === 0) continue;
 
-    if (rneCol >= 0 && row[rneCol]) {
-      candidateRne = String(row[rneCol]).trim();
-    }
+      const nonEmptyCells = row.map((c: any) => String(c).trim()).filter(Boolean);
+      if (nonEmptyCells.length === 0) continue;
 
-    if (genderCol >= 0 && row[genderCol]) {
-      const gStr = String(row[genderCol]).trim().toUpperCase();
-      if (gStr.startsWith('M') || gStr === '1') candidateGender = 'M';
-      else if (gStr.startsWith('F') || gStr === '2') candidateGender = 'F';
-    }
+      // Detect inline section/grade subheaders inside a single master sheet (e.g., "1er Grado - Sección B")
+      if (nonEmptyCells.length <= 2) {
+        const joined = nonEmptyCells.join(' ');
+        const lowerJ = joined.toLowerCase();
+        if (
+          lowerJ.includes('grado') ||
+          lowerJ.includes('sección') ||
+          lowerJ.includes('seccion') ||
+          lowerJ.includes('pre-primario') ||
+          lowerJ.includes('kínder') ||
+          lowerJ.includes('kinder')
+        ) {
+          const updated = inferGradeAndSectionFromLabel(joined, currentBlockGrade, currentBlockSection);
+          currentBlockGrade = updated.grade;
+          currentBlockSection = updated.section;
+          continue;
+        }
+      }
 
-    if (parentCol >= 0 && row[parentCol]) {
-      candidateParent = String(row[parentCol]).trim();
-    }
+      let candidateName = '';
+      let candidateNumber: number | undefined;
+      let candidateRne = '';
+      let candidateGender: 'M' | 'F' | undefined;
+      let candidateParent = '';
+      let candidatePhone = '';
+      let candidateGrade = currentBlockGrade;
+      let candidateSection = currentBlockSection;
 
-    if (phoneCol >= 0 && row[phoneCol]) {
-      candidatePhone = String(row[phoneCol]).trim();
-    }
+      if (nameCol >= 0 && row[nameCol]) {
+        candidateName = String(row[nameCol]).trim();
+      } else {
+        for (const cell of row) {
+          const val = String(cell).trim();
+          if (val.length > 3 && isNaN(Number(val)) && !val.includes('@') && !val.toLowerCase().includes('total')) {
+            candidateName = val;
+            break;
+          }
+        }
+      }
 
-    if (gradeCol >= 0 && row[gradeCol]) {
-      const g = String(row[gradeCol]).trim();
-      if (g) candidateGrade = g;
-    }
+      const lowerName = candidateName.toLowerCase();
+      if (
+        !candidateName ||
+        candidateName.length < 2 ||
+        lowerName === 'nombre' ||
+        lowerName === 'nombres' ||
+        lowerName.includes('nombre completo') ||
+        lowerName.includes('total estudiantes') ||
+        lowerName.includes('firma')
+      ) {
+        continue;
+      }
 
-    if (sectionCol >= 0 && row[sectionCol]) {
-      const s = String(row[sectionCol]).trim().toUpperCase();
-      if (s) candidateSection = s;
-    }
+      if (numberCol >= 0 && row[numberCol] && !isNaN(Number(row[numberCol]))) {
+        candidateNumber = Number(row[numberCol]);
+      } else {
+        candidateNumber = candidates.length + 1;
+      }
 
-    candidates.push({
-      number: candidateNumber,
-      name: candidateName,
-      gender: candidateGender,
-      rne: candidateRne || `RNE-${Math.floor(100000 + Math.random() * 900000)}`,
-      parentName: candidateParent,
-      parentPhone: candidatePhone,
-      grade: candidateGrade,
-      section: candidateSection,
-      shift: defaultShift
-    });
+      if (rneCol >= 0 && row[rneCol]) {
+        candidateRne = String(row[rneCol]).trim();
+      }
+
+      if (genderCol >= 0 && row[genderCol]) {
+        const gStr = String(row[genderCol]).trim().toUpperCase();
+        if (gStr.startsWith('M') || gStr === '1' || gStr === 'V') candidateGender = 'M';
+        else if (gStr.startsWith('F') || gStr === '2' || gStr === 'H') candidateGender = 'F';
+      }
+
+      if (parentCol >= 0 && row[parentCol]) {
+        candidateParent = String(row[parentCol]).trim();
+      }
+
+      if (phoneCol >= 0 && row[phoneCol]) {
+        candidatePhone = String(row[phoneCol]).trim();
+      }
+
+      if (gradeCol >= 0 && row[gradeCol]) {
+        const g = String(row[gradeCol]).trim();
+        if (g) candidateGrade = normalizeGradeString(g, currentBlockGrade);
+      }
+
+      if (sectionCol >= 0 && row[sectionCol]) {
+        const s = String(row[sectionCol]).trim().toUpperCase();
+        if (s) {
+          const secClean = s.replace(/secci[oó]n/i, '').trim();
+          if (secClean) candidateSection = secClean.charAt(0).toUpperCase();
+        }
+      }
+
+      candidates.push({
+        number: candidateNumber,
+        name: candidateName,
+        gender: candidateGender,
+        rne: candidateRne || `RNE-${Math.floor(100000 + Math.random() * 900000)}`,
+        parentName: candidateParent,
+        parentPhone: candidatePhone,
+        grade: candidateGrade,
+        section: candidateSection,
+        shift: defaultShift
+      });
+    }
   }
 
   return candidates;

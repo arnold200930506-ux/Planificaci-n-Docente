@@ -22,6 +22,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { PlanAttachment } from '../types/minerd';
+import { storageService } from '../services/storageService';
 
 interface FileAttachmentManagerProps {
   attachments: PlanAttachment[];
@@ -225,8 +226,9 @@ export const FileAttachmentManager: React.FC<FileAttachmentManagerProps> = ({
           category = 'external_plan';
         }
 
+        const attachmentId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const newAttachment: PlanAttachment = {
-          id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          id: attachmentId,
           name: file.name,
           size: file.size,
           type: file.type || 'application/octet-stream',
@@ -234,6 +236,9 @@ export const FileAttachmentManager: React.FC<FileAttachmentManagerProps> = ({
           category,
           uploadedAt: new Date().toISOString()
         };
+
+        // Guardar copia persistente en el almacén de adjuntos para descarga confiable
+        storageService.saveAttachmentFile(attachmentId, result, file.name).catch(() => {});
 
         onChange([...attachments, newAttachment]);
       };
@@ -303,18 +308,88 @@ export const FileAttachmentManager: React.FC<FileAttachmentManagerProps> = ({
     onChange(attachments.map(a => a.id === id ? { ...a, category } : a));
   };
 
-  const handleDownload = (item: PlanAttachment) => {
-    if (item.url) {
+  const handleDownload = async (item: PlanAttachment) => {
+    if (item.url && !item.dataUrl) {
       window.open(item.url, '_blank', 'noopener,noreferrer');
       return;
     }
-    if (item.dataUrl) {
-      const a = document.createElement('a');
-      a.href = item.dataUrl;
-      a.download = item.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+
+    let dataUrl = item.dataUrl;
+    if (!dataUrl) {
+      // Intentar cargar desde el storage de adjuntos compartidos si no vino en el documento principal
+      try {
+        const fetched = await storageService.getAttachmentDataUrl(item.id);
+        if (fetched) {
+          dataUrl = fetched;
+        }
+      } catch (err) {
+        console.warn('No se pudo recuperar el contenido binario del adjunto:', err);
+      }
+    }
+
+    if (!dataUrl) {
+      alert(`No se encontró el contenido del archivo "${item.name}". Es posible que el archivo haya sido guardado en otra sesión o supere el límite de almacenamiento.`);
+      return;
+    }
+
+    try {
+      // Si es un Data URL base64, convertir a Blob para garantizar descarga en navegadores modernos y móviles
+      if (dataUrl.startsWith('data:')) {
+        const parts = dataUrl.split(',');
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : (item.type || 'application/pdf');
+        const b64Data = parts[1];
+        const byteCharacters = atob(b64Data);
+        const byteArrays = [];
+
+        const sliceSize = 512;
+        for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+          const slice = byteCharacters.slice(offset, offset + sliceSize);
+          const byteNumbers = new Array(slice.length);
+          for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          byteArrays.push(byteArray);
+        }
+
+        const blob = new Blob(byteArrays, { type: mimeType });
+        const blobUrl = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = blobUrl;
+        a.download = item.name || 'documento.pdf';
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(blobUrl);
+        }, 300);
+      } else {
+        // Enlace o URL directa
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = dataUrl;
+        a.download = item.name || 'documento.pdf';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+        }, 300);
+      }
+    } catch (e) {
+      console.error('Error al descargar archivo:', e);
+      // Fallback estándar
+      const fallback = document.createElement('a');
+      fallback.href = dataUrl;
+      fallback.download = item.name || 'documento.pdf';
+      fallback.target = '_blank';
+      document.body.appendChild(fallback);
+      fallback.click();
+      setTimeout(() => document.body.removeChild(fallback), 300);
     }
   };
 
@@ -383,7 +458,7 @@ export const FileAttachmentManager: React.FC<FileAttachmentManagerProps> = ({
                 Planificaciones Previas y Archivos Sujetos a Aprobación
               </p>
               <p className="text-[11px] text-slate-600 mt-0.5 leading-snug">
-                Los archivos de planificaciones anteriores o documentos adjuntos cargados aquí serán verificados y aprobados por la <strong>Dirección General (Licdo. Arnold Javier Sanchez)</strong> o por el equipo de <strong>Coordinación Pedagógica</strong>.
+                Los archivos de planificaciones anteriores o documentos adjuntos cargados aquí serán verificados y aprobados por la <strong>Dirección General del Centro</strong> o por el equipo de <strong>Coordinación Pedagógica</strong>.
               </p>
             </div>
           </div>

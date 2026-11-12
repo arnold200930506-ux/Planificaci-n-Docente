@@ -308,7 +308,7 @@ export const UploadPreMadePlanModal: React.FC<UploadPreMadePlanModalProps> = ({
               ¡Planificación Enviada con Éxito!
             </h3>
             <p className="text-xs text-emerald-700 max-w-md mx-auto leading-relaxed">
-              La planificación y sus archivos adjuntos fueron enviados a la bandeja de <strong>Supervisión Pedagógica</strong> para revisión y aprobación por el <strong>Licdo. Arnold Javier Sanchez</strong> o el equipo de <strong>Coordinación Pedagógica</strong>.
+              La planificación y sus archivos adjuntos fueron enviados a la bandeja de <strong>Supervisión Pedagógica</strong> para revisión y aprobación por la <strong>Dirección</strong> o el equipo de <strong>Coordinación Pedagógica</strong>.
             </p>
           </div>
         ) : (

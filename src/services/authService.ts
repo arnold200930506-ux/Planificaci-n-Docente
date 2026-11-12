@@ -8,6 +8,7 @@ export interface AuthSession {
   userName: string;
   roleTitle: string;
   unlockedAt: string;
+  teacherId?: string;
 }
 
 export const DIRECTOR_NAME = 'Licdo. Arnold Javier Sanchez';
@@ -122,7 +123,7 @@ export const authService = {
           isUnlocked: true,
           role: 'coordinator',
           userName: customUserName || (firstCoord ? firstCoord.name : 'Coordinación Pedagógica'),
-          roleTitle: firstCoord ? firstCoord.roleTitle : 'Coordinación Pedagógica',
+          roleTitle: (firstCoord && firstCoord.roleTitle) ? firstCoord.roleTitle : 'Coordinación Pedagógica',
           unlockedAt: new Date().toISOString()
         };
         this.saveSession(session, remember);

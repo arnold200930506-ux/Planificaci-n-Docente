@@ -18,7 +18,10 @@ import {
   Unlock, 
   ChevronRight,
   UserCheck,
+  GraduationCap,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   X,
   School,
   Sparkles,
@@ -27,7 +30,9 @@ import {
   LogOut,
   ChevronDown,
   ChevronUp,
-  Sliders
+  Sliders,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { UserRole } from '../types/minerd';
 import { authService, AuthRole, DIRECTOR_NAME } from '../services/authService';
@@ -43,6 +48,7 @@ export type ActiveTab =
   | 'weekly' 
   | 'units' 
   | 'curriculum' 
+  | 'grades'
   | 'print';
 
 interface SidebarNavProps {
@@ -59,6 +65,10 @@ interface SidebarNavProps {
   isUnlocked: boolean;
   onRequestUnlock: (targetTab?: ActiveTab, defaultRole?: 'director' | 'coordinator' | 'orientator') => void;
   onLockSession: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+  isDarkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
 export const SidebarNav: React.FC<SidebarNavProps> = ({
@@ -74,7 +84,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   activeRole = 'coordinator',
   isUnlocked,
   onRequestUnlock,
-  onLockSession
+  onLockSession,
+  isCollapsed = false,
+  onToggleCollapse,
+  isDarkMode = false,
+  onToggleDarkMode
 }) => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isConfigMenuOpen, setIsConfigMenuOpen] = useState(false);
@@ -205,41 +219,68 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   };
 
   const navContent = (
-    <div className="flex flex-col h-full bg-slate-950 text-slate-300 border-r border-slate-800/80 w-72 sm:w-80 select-none">
+    <div className="app-sidebar-panel flex flex-col h-full bg-slate-950 text-slate-300 border-r border-slate-800/80 w-72 sm:w-80 select-none">
       
       {/* 1. Header / School Logo */}
-      <div className="p-5 pt-[max(1.25rem,env(safe-area-inset-top))] border-b border-slate-800/90 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="app-sidebar-brand p-4 pt-[max(1.25rem,env(safe-area-inset-top))] border-b border-slate-800/90 flex items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0 flex-1">
           {logoUrl ? (
             <img 
               src={logoUrl} 
               alt="Logo Institucional" 
-              className="w-10 h-10 rounded-2xl object-cover shadow-md border border-indigo-500/30 shrink-0 bg-white" 
+              className="w-9 h-9 rounded-2xl object-cover shadow-md border border-indigo-500/30 shrink-0 bg-white" 
             />
           ) : (
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 flex items-center justify-center text-amber-300 shadow-md border border-indigo-500/30 shrink-0">
-              <School className="w-5 h-5 text-amber-300" />
+            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-700 flex items-center justify-center text-amber-300 shadow-md border border-indigo-500/30 shrink-0">
+              <School className="w-4 h-4 text-amber-300" />
             </div>
           )}
-          <div>
-            <h2 className="text-sm font-extrabold text-white tracking-tight leading-tight line-clamp-1">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs font-black text-white tracking-tight leading-tight line-clamp-1">
               {schoolName || 'Escuela Dr. José Francisco Peña Gómez'}
             </h2>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[10px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30 px-1 rounded-sm tracking-wider font-mono">
+              <span className="text-[9px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30 px-1 rounded-sm tracking-wider font-mono">
                 {schoolCode}
               </span>
               <span className="text-slate-600">·</span>
-              <span className="text-[10px] font-medium text-slate-400 truncate max-w-[140px]">{district}</span>
+              <span className="text-[9px] font-medium text-slate-400 truncate max-w-[120px]">{district}</span>
             </div>
           </div>
         </div>
 
-        {/* Mobile close button */}
+        {/* Botón Modo Oscuro / Claro en escritorio */}
+        {onToggleDarkMode && (
+          <button
+            type="button"
+            onClick={onToggleDarkMode}
+            className="p-1.5 bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 rounded-xl border border-slate-700/60 transition-all cursor-pointer shrink-0 shadow-xs"
+            title={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+            aria-label="Cambiar tema claro/oscuro"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+        )}
+
+        {/* Botón para ocultar/cerrar la barra en computadora / laptop */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="hidden lg:flex p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-amber-300 rounded-xl border border-slate-700/60 transition-all cursor-pointer shrink-0 shadow-xs"
+            title="Ocultar barra de funciones"
+            aria-label="Ocultar barra lateral"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Mobile close button (X) */}
         <button
           type="button"
           onClick={() => setIsMobileOpen(false)}
-          className="lg:hidden text-slate-400 hover:text-white p-1"
+          className="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+          aria-label="Cerrar menú"
         >
           <X className="w-5 h-5" />
         </button>
@@ -248,7 +289,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
 
       {/* 3. Scrollable Vertical Navigation Menu */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 no-scrollbar">
+      <div className="app-sidebar-nav flex-1 overflow-y-auto px-3 py-4 space-y-6 no-scrollbar">
         
         {/* GROUP 1: GESTIÓN DE AULA Y DOCENTE (100% LIBRE PARA DOCENTES) */}
         <div className="space-y-1">
@@ -306,7 +347,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             </div>
             {activeTab === 'units' && <ChevronRight className="w-3.5 h-3.5 text-white/70" />}
           </button>
-
           {/* 4. Diseño Curricular (sin la palabra MINERD) */}
           <button
             type="button"
@@ -324,7 +364,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
             {activeTab === 'curriculum' && <ChevronRight className="w-3.5 h-3.5 text-white/70" />}
           </button>
 
-          {/* 5. Control de Asistencia & Matrícula (debajo de Diseño Curricular y sin la palabra Nuevo) */}
+          {/* 5. Control de Asistencia & Matrícula */}
           <button
             type="button"
             onClick={() => handleTabClick('attendance')}
@@ -549,12 +589,14 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   return (
     <>
       {/* Desktop Fixed Left Sidebar */}
-      <aside className="no-print hidden lg:flex fixed inset-y-0 left-0 z-40">
+      <aside className={`no-print hidden lg:flex fixed inset-y-0 left-0 z-40 transition-transform duration-200 ${
+        isCollapsed ? '-translate-x-full' : 'translate-x-0'
+      }`}>
         {navContent}
       </aside>
 
       {/* Mobile Top Header Bar with Hamburger Menu & Safe Area */}
-      <header className="no-print lg:hidden sticky top-0 z-40 bg-slate-950 text-white px-4 pt-safe flex flex-col justify-center border-b border-slate-800 shadow-md">
+      <header className="app-mobile-header no-print lg:hidden sticky top-0 z-40 bg-slate-950 text-white px-4 pt-safe flex flex-col justify-center border-b border-slate-800 shadow-md">
         <div className="h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
@@ -579,15 +621,24 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 </div>
               )}
               <span className="font-extrabold text-sm text-white line-clamp-1">
-                {schoolName || 'MINERD Planificación'}
+                {schoolName || 'Escuela Dr. José Francisco Peña Gómez'}
               </span>
             </div>
           </div>
 
+          {/* Botón Modo Oscuro / Claro en móvil */}
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold bg-indigo-950 text-indigo-300 border border-indigo-700/50 px-2 py-1 rounded-lg">
-              MINERD
-            </span>
+            {onToggleDarkMode && (
+              <button
+                type="button"
+                onClick={onToggleDarkMode}
+                className="p-2 bg-slate-900 text-amber-300 hover:text-white rounded-xl border border-slate-800 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                title={isDarkMode ? 'Modo Claro' : 'Modo Oscuro'}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                <span>{isDarkMode ? 'Claro' : 'Oscuro'}</span>
+              </button>
+            )}
           </div>
         </div>
       </header>

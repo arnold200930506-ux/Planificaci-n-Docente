@@ -34,17 +34,19 @@ import {
 
 interface CurriculumBrowserProps {
   onSelectTopicForNewPlan: (area: SubjectArea, topic: CurricularTopicSuggestion) => void;
+  onCreateUnitFromAdecuacion?: (item: AdecuacionCurricularItem) => void;
 }
 
 export const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({
-  onSelectTopicForNewPlan
+  onSelectTopicForNewPlan,
+  onCreateUnitFromAdecuacion
 }) => {
   // Navigation tabs
   const [activeSubTab, setActiveSubTab] = useState<'malla_adecuacion' | 'bank_topics' | 'verbs' | 'metacognition' | 'transversal'>('malla_adecuacion');
 
   // Filters for Adecuación Curricular by Grade
-  const [selectedGrade, setSelectedGrade] = useState<string>('4to Grado');
-  const [selectedArea, setSelectedArea] = useState<SubjectArea | 'Todas'>('Lengua Española');
+  const [selectedGrade, setSelectedGrade] = useState<string>('Todos');
+  const [selectedArea, setSelectedArea] = useState<SubjectArea | 'Todas'>('Todas');
   const [selectedPeriod, setSelectedPeriod] = useState<string>('Todos los Períodos');
   const [gradeSearchQuery, setGradeSearchQuery] = useState('');
 
@@ -303,16 +305,29 @@ export const CurriculumBrowser: React.FC<CurriculumBrowserProps> = ({
                           </h3>
                         </div>
 
-                        {/* Botón de Acción Directa: Planificar con esta Malla */}
-                        <button
-                          type="button"
-                          onClick={() => handleCreatePlanFromAdecuacion(item)}
-                          className="px-3.5 py-2 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 hover:scale-[1.01]"
-                          title="Cargar esta malla automáticamente en una nueva planificación diaria"
-                        >
-                          <Plus className="w-4 h-4 stroke-[3]" />
-                          <span>Planificar con este Tema</span>
-                        </button>
+                        {/* Botones de Acción Directa: Crear Unidad o Planificar Clase Diaria */}
+                        <div className="flex flex-wrap items-center gap-2 shrink-0">
+                          {onCreateUnitFromAdecuacion && (
+                            <button
+                              type="button"
+                              onClick={() => onCreateUnitFromAdecuacion(item)}
+                              className="px-3.5 py-2 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 hover:scale-[1.01]"
+                              title="Cargar esta malla automáticamente en una nueva Unidad de Aprendizaje"
+                            >
+                              <BookOpen className="w-4 h-4 text-amber-300" />
+                              <span>Crear Unidad</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleCreatePlanFromAdecuacion(item)}
+                            className="px-3.5 py-2 text-xs font-black text-slate-950 bg-amber-400 hover:bg-amber-300 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer shrink-0 hover:scale-[1.01]"
+                            title="Cargar esta malla automáticamente en una nueva planificación diaria"
+                          >
+                            <Plus className="w-4 h-4 stroke-[3]" />
+                            <span>Planificar Clase Diaria</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Intención Pedagógica Oficial */}

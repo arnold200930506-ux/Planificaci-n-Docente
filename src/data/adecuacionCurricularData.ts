@@ -673,16 +673,375 @@ export const ADECUACION_CURRICULAR_DATA: AdecuacionCurricularItem[] = [
       'Pregunta de reflexión: ¿Cómo eres tú un trinitario en tu escuela y con tus compañeros hoy?'
     ],
     evaluations: ['Rúbrica de análisis histórico y debate', 'Línea de tiempo ilustrada']
+  },
+
+  // --- NIVEL INICIAL (POR DOMINIOS - ADECUACIÓN CURRICULAR) ---
+  {
+    id: 'ade-ini-1',
+    grade: 'Pre-Primario',
+    cycle: 'Primer Ciclo',
+    level: 'inicial',
+    area: 'Lengua Española',
+    unitTheme: 'Mi Identidad, Mi Familia y Convivencia en el Preescolar (Por Dominios)',
+    period: 'Período 1',
+    pedagogicalIntention: 'Fortalecer el Dominio Socioemocional y Comunicativo reconociendo su nombre, sus características personales, los miembros de su familia y los acuerdos de convivencia en los rincones de juego-trabajo.',
+    specificCompetencies: [
+      {
+        title: 'Dominio Socioemocional (Identidad y Autonomía)',
+        description: 'Se reconoce como una persona única, valiosa, miembro de una familia y de su grupo escolar, expresando emociones y respetando normas de convivencia.'
+      },
+      {
+        title: 'Dominio Comunicativo y Expresión',
+        description: 'Comprende y expresa oralmente relatos sencillos sobre su familia y reconoce las letras iniciales de su nombre propio.'
+      }
+    ],
+    conceptualContents: [
+      'Mi cuerpo, mi nombre propio y mis gustos personales.',
+      'La familia: integrantes, roles y normas de afecto y respeto.',
+      'Las zonas o rincones de juego-trabajo del aula de Nivel Inicial.'
+    ],
+    proceduralContents: [
+      'Diálogo en el Encuentro de Grupo mostrando fotografías de su familia.',
+      'Modelado con masilla y pintura dactilar de su autorretrato en Actividad Grupal.',
+      'Identificación de su tarjeta con su nombre en el cartel de asistencia.'
+    ],
+    attitudinalContents: [
+      'Alegría al compartir con otros niños y niñas en las zonas de juego.',
+      'Cuidado y orden de los juguetes al escuchar la canción de recoger.'
+    ],
+    achievementIndicators: [
+      'Dice su nombre completo, el de sus padres y describe actividades que realiza en familia.',
+      'Identifica visualmente su nombre en el cartel de asistencia y traza sus letras con apoyo.',
+      'Practica hábitos de cortesía, higiene y orden durante la rutina diaria.'
+    ],
+    startSuggestions: [
+      'Encuentro de Grupo: Canción "¿Quién vino hoy a la escuela?" y actualización del cartel del tiempo y asistencia.'
+    ],
+    devSuggestions: [
+      'Actividad Grupal (Expresión Plástica): Pintar con témpera el mural de nuestras manos y nuestras familias.',
+      'Grupo Pequeño: Armar su nombre con letras móviles de foami junto a la maestra.',
+      'Grupo Grande: Dibujar libremente a su familia con crayones gruesos.'
+    ],
+    closeSuggestions: [
+      'Juego-Trabajo en los Rincones (Dramatización, Construcción y Arte) y asamblea final sobre cómo nos sentimos hoy.'
+    ],
+    evaluations: ['Observación sistemática en los momentos de la rutina', 'Portafolio infantil y registro anecdótico']
+  },
+
+  // --- ÁREAS ESPECIALES: EDUCACIÓN ARTÍSTICA, EDUCACIÓN FÍSICA, FORMACIÓN HUMANA E IDIOMAS ---
+  {
+    id: 'ade-art-1',
+    grade: '4to Grado',
+    cycle: 'Segundo Ciclo',
+    level: 'primario_segundo_ciclo',
+    area: 'Educación Artística',
+    unitTheme: 'Ritmos Folklóricos Dominicanos, Artes Visuales y Carnaval Popular',
+    period: 'Período 2',
+    pedagogicalIntention: 'Reconocer y recrear expresiones del patrimonio artístico y folklórico dominicano (merengue, mangulina, caretas de carnaval y colores primarios/secundarios) desarrollando la sensibilidad estética.',
+    specificCompetencies: [
+      {
+        title: 'Expresión Artística',
+        description: 'Crea composiciones visuales, musicales y escénicas utilizando elementos del folklore nacional y materiales reciclables del entorno.'
+      },
+      {
+        title: 'Apreciación Estética y Artística',
+        description: 'Valora las manifestaciones culturales de las regiones dominicanas identificando instrumentos autóctonos (güira, tambora, balsié).'
+      }
+    ],
+    conceptualContents: [
+      'Colores cálidos y fríos en la plástica caribeña.',
+      'El carnaval dominicano: Diablos Cojuelos, Lechones, Guloyas y Pintaos.',
+      'Instrumentos del conjunto típico: tambora, güira y acordeón.'
+    ],
+    proceduralContents: [
+      'Confección de caretas de carnaval utilizando cartón reciclado, papel maché y témpera.',
+      'Ejecución de células rítmicas básicas con instrumentos de percusión menor o percusión corporal.',
+      'Montaje de una comparsa escolar integrando música y movimiento.'
+    ],
+    attitudinalContents: [
+      'Orgullo por la riqueza artística y folklórica de la República Dominicana.',
+      'Creatividad, trabajo en equipo y cuidado de los materiales del taller de arte.'
+    ],
+    achievementIndicators: [
+      'Combina colores primarios y secundarios con intencionalidad expresiva en sus creaciones.',
+      'Distingue auditiva y visualmente ritmos y personajes tradicionales del folklore nacional.',
+      'Participa con entusiasmo y respeto en muestras artísticas y comparsas escolares.'
+    ],
+    startSuggestions: [
+      'Audición activa de un merengue típico y observación de caretas tradicionales dominicanas.'
+    ],
+    devSuggestions: [
+      'Taller práctico de diseño y pintado de caretas con materiales reciclados.',
+      'Ensayo rítmico por grupos siguiendo el pulso con palmadas y claves.'
+    ],
+    closeSuggestions: [
+      'Galería de arte en el aula donde cada estudiante presenta su creación y explica sus colores.'
+    ],
+    evaluations: ['Rúbrica de expresión plástica y creatividad', 'Lista de cotejo de participación artística']
+  },
+  {
+    id: 'ade-ef-1',
+    grade: '3er Grado',
+    cycle: 'Primer Ciclo',
+    level: 'primario_primer_ciclo',
+    area: 'Educación Física',
+    unitTheme: 'Habilidades Motrices Básicas, Equilibrio y Juegos Tradicionales Cooperativos',
+    period: 'Período 1',
+    pedagogicalIntention: 'Desarrollar la coordinación visomotora, el equilibrio dinámico y el trabajo en equipo mediante circuitos motores y juegos tradicionales dominicanos (el pañuelito, la rayuela, saltar la cuerda).',
+    specificCompetencies: [
+      {
+        title: 'Dominio Motriz y Expresión Corporal',
+        description: 'Coordina desplazamientos, saltos, lanzamientos y recepciones ajustando su cuerpo en el espacio y el tiempo.'
+      },
+      {
+        title: 'Aptitud Física, Juego Limpio y Salud',
+        description: 'Participa en juegos cooperativos y tradicionales respetando las reglas, la hidratación y la integridad física de sus compañeros.'
+      }
+    ],
+    conceptualContents: [
+      'Esquema corporal, lateralidad (izquierda-derecha) y equilibrio estático y dinámico.',
+      'Los juegos tradicionales y populares de la República Dominicana.',
+      'Importancia del calentamiento articular, la hidratación y la vuelta a la calma.'
+    ],
+    proceduralContents: [
+      'Calentamiento cefalocaudal guiado en la cancha escolar.',
+      'Recorrido de circuito motriz con aros, conos, salto en un pie y lanzamiento de pelotas.',
+      'Práctica grupal de juegos tradicionales fomentando la inclusión de todos.'
+    ],
+    attitudinalContents: [
+      'Compañerismo, juego limpio (fair play) y aceptación tanto del triunfo como de la derrota.',
+      'Autocuidado, higiene postural e hidratación adecuada.'
+    ],
+    achievementIndicators: [
+      'Ejecuta desplazamientos, giros y saltos manteniendo el control postural y el equilibrio.',
+      'Colabora con sus compañeros en juegos colectivos respetando turnos y reglas acordadas.',
+      'Reconoce los beneficios de la actividad física y el consumo de agua para su salud.'
+    ],
+    startSuggestions: [
+      'Formación en círculo en la cancha, toma de pulso en reposo y movilidad articular dinámica.'
+    ],
+    devSuggestions: [
+      'Estación 1: Circuito de zig-zag entre conos y salto dentro de aros.',
+      'Estación 2: Juego tradicional "El Pañuelito" y "La Rayuela Cooperativa".'
+    ],
+    closeSuggestions: [
+      'Ejercicios de respiración y estiramiento (vuelta a la calma), hidratación y reflexión sobre el juego limpio.'
+    ],
+    evaluations: ['Lista de cotejo de desempeño motriz', 'Escala estimativa de trabajo cooperativo']
+  },
+  {
+    id: 'ade-fihr-1',
+    grade: '5to Grado',
+    cycle: 'Segundo Ciclo',
+    level: 'primario_segundo_ciclo',
+    area: 'Formación Integral Humana y Religiosa',
+    unitTheme: 'El Valor de la Vida, la Convivencia Fraterna y la Cultura de Paz',
+    period: 'Período 1',
+    pedagogicalIntention: 'Promover relaciones de respeto, empatía, perdón y solidaridad en la escuela y la familia, reconociendo la dignidad de cada ser humano y la resolución pacífica de conflictos.',
+    specificCompetencies: [
+      {
+        title: 'Valoración de la Vida y la Dignidad Humana',
+        description: 'Reconoce el valor sagrado de la vida, el cuidado de la creación y el respeto a las diferencias individuales.'
+      },
+      {
+        title: 'Convivencia Fraterna y Apertura a la Trascendencia',
+        description: 'Practica el diálogo, la empatía y la mediación pacífica ante situaciones de conflicto en el entorno escolar.'
+      }
+    ],
+    conceptualContents: [
+      'La dignidad humana y los valores de respeto, solidaridad, empatía y honestidad.',
+      'La convivencia armónica y la resolución pacífica de conflictos mediante el diálogo.',
+      'Enseñanzas de amor al prójimo y servicio comunitario.'
+    ],
+    proceduralContents: [
+      'Análisis de estudios de casos y dilemas morales sobre situaciones de convivencia en el recreo.',
+      'Dramatización (juego de roles) aplicando pasos para resolver desacuerdos sin violencia.',
+      'Elaboración del "Árbol de los Compromisos de Paz" del grado.'
+    ],
+    attitudinalContents: [
+      'Sensibilidad ante las necesidades de sus compañeros y trato amable hacia todos.',
+      'Disposición para pedir disculpas, perdonar y construir acuerdos justos.'
+    ],
+    achievementIndicators: [
+      'Propone soluciones pacíficas y justas ante conflictos cotidianos en el aula y la familia.',
+      'Muestra trato respetuoso, inclusivo y solidario hacia sus compañeros sin distinción.',
+      'Participa activamente en campañas de buen trato y solidaridad escolar.'
+    ],
+    startSuggestions: [
+      'Lectura reflexiva de una parábola o fábula sobre la empatía y lluvia de sentimientos.'
+    ],
+    devSuggestions: [
+      'Trabajo grupal analizando 3 casos de conflicto escolar y proponiendo cómo actuaría un mediador de paz.',
+      'Redacción de compromisos personales en hojas verdes para el Árbol de la Convivencia.'
+    ],
+    closeSuggestions: [
+      'Círculo de paz y agradecimiento: cada estudiante destaca una cualidad positiva de su compañero de al lado.'
+    ],
+    evaluations: ['Diario reflexivo de valores', 'Rúbrica de convivencia y trabajo colaborativo']
+  },
+  {
+    id: 'ade-ing-1',
+    grade: '5to Grado',
+    cycle: 'Segundo Ciclo',
+    level: 'primario_segundo_ciclo',
+    area: 'Lenguas Extranjeras (Inglés)',
+    unitTheme: 'Greetings, Personal Introductions and Daily Routines',
+    period: 'Período 1',
+    pedagogicalIntention: 'Comprender y producir expresiones orales y escritas breves en inglés para saludar, presentarse, deletrear su nombre y describir actividades básicas de su rutina escolar.',
+    specificCompetencies: [
+      {
+        title: 'Comprensión Oral y Escrita (Listening & Reading)',
+        description: 'Identifica saludos, información personal básica y vocabulario del aula en diálogos cortos y textos ilustrados en inglés.'
+      },
+      {
+        title: 'Producción Oral y Escrita (Speaking & Writing)',
+        description: 'Participa en intercambios comunicativos breves presentándose a sí mismo y a un compañero en inglés.'
+      }
+    ],
+    conceptualContents: [
+      'Greetings and farewells: Good morning, Hello, How are you?, Goodbye, See you tomorrow.',
+      'Personal information: What is your name? My name is..., How old are you? I am ... years old.',
+      'Classroom objects and daily routine verbs (wake up, go to school, study, play).'
+    ],
+    proceduralContents: [
+      'Escucha y repetición coral e individual de diálogos modelo con pronunciación adecuada.',
+      'Role-play en parejas practicando saludos y presentación personal.',
+      'Elaboración de un "Student ID Card" en inglés con sus datos personales.'
+    ],
+    attitudinalContents: [
+      'Confianza y entusiasmo al comunicarse en una lengua extranjera sin temor a equivocarse.',
+      'Respeto y valoración de otras culturas e idiomas del mundo.'
+    ],
+    achievementIndicators: [
+      'Responde de forma oral y escrita a preguntas sencillas sobre su nombre, edad y procedencia en inglés.',
+      'Saluda y se despide utilizando las expresiones formales e informales adecuadas al momento del día.',
+      'Reconoce e identifica objetos del aula y acciones cotidianas en láminas y audios.'
+    ],
+    startSuggestions: [
+      'Warm-up song: "Good Morning Song" y juego rápido de vocabulario con flashcards.'
+    ],
+    devSuggestions: [
+      'Práctica guiada del diálogo "Nice to meet you!" en parejas rotativas.',
+      'Creación de su ficha "All About Me" en inglés en el cuaderno.'
+    ],
+    closeSuggestions: [
+      'Presentación voluntaria de 3 parejas frente a la clase y despedida en inglés.'
+    ],
+    evaluations: ['Rúbrica de interacción oral (Role-play)', 'Revisión de ficha escrita en inglés']
+  },
+
+  // --- 1RO DE SECUNDARIA (ADECUACIÓN CURRICULAR PRIMER CICLO SECUNDARIA) ---
+  {
+    id: 'ade-sec1-le-1',
+    grade: '1ro de Secundaria',
+    cycle: 'Secundaria Primer Ciclo',
+    level: 'secundario_primer_ciclo',
+    area: 'Lengua Española',
+    unitTheme: 'La Guía Turística: Promoción del Patrimonio Natural y Cultural Dominicano',
+    period: 'Período 1',
+    pedagogicalIntention: 'Comprender y producir guías turísticas estructuradas sobre atractivos históricos y ecológicos de la República Dominicana, empleando adjetivos calificativos, conectores espaciales y vocabulario persuasivo.',
+    specificCompetencies: [
+      {
+        title: 'Comprensión y Producción Escrita Funcional',
+        description: 'Analiza y redacta guías turísticas impresas y digitales organizando portada, información general, lugares de interés, gastronomía y recomendaciones.'
+      },
+      {
+        title: 'Expresión Oral y Pensamiento Crítico',
+        description: 'Expone oralmente rutas ecoturísticas sostenibles valorando la conservación de los recursos naturales y culturales del país.'
+      }
+    ],
+    conceptualContents: [
+      'La guía turística: función apelativa y descriptiva, estructura y recursos paratextuales (mapas, fotografías, íconos).',
+      'El sintagma nominal, adjetivos valorativos y oraciones exhortativas.',
+      'Conectores espaciales y de orden (al norte de, frente a, en primer lugar).'
+    ],
+    proceduralContents: [
+      'Investigación documental sobre los atractivos de su provincia o región.',
+      'Planificación, textualización y revisión de un folleto o guía turística ilustrada.',
+      'Presentación oral simulando una feria nacional de turismo sostenible.'
+    ],
+    attitudinalContents: [
+      'Valoración y defensa del patrimonio histórico, cultural y ecológico dominicano.',
+      'Rigor ortográfico, creatividad estética y responsabilidad en el trabajo colaborativo.'
+    ],
+    achievementIndicators: [
+      'Distingue la estructura y los recursos persuasivos de diversas guías turísticas.',
+      'Produce una guía turística coherente, atractiva y ortográficamente correcta sobre su comunidad.',
+      'Expone con fluidez los atractivos seleccionados promoviendo el turismo ecológico responsable.'
+    ],
+    startSuggestions: [
+      'Exploración de folletos turísticos reales y pregunta detonadora: ¿Qué lugar de nuestra provincia recomendarías visitar a un turista extranjero y por qué?'
+    ],
+    devSuggestions: [
+      'Análisis en equipos de los componentes gráficos y lingüísticos de una guía modelo.',
+      'Redacción del borrador de la guía turística doblada en tríptico con mapa y recomendaciones.'
+    ],
+    closeSuggestions: [
+      'Feria Turística Escolar: exposición de los trípticos creados y coevaluación con rúbrica.'
+    ],
+    evaluations: ['Rúbrica de producción del tríptico turístico', 'Escala estimativa de exposición oral']
+  },
+  {
+    id: 'ade-sec1-mat-1',
+    grade: '1ro de Secundaria',
+    cycle: 'Secundaria Primer Ciclo',
+    level: 'secundario_primer_ciclo',
+    area: 'Matemática',
+    unitTheme: 'Los Números Enteros (Z), Operaciones y Aplicaciones en la Vida Diaria',
+    period: 'Período 1',
+    pedagogicalIntention: 'Comprender el conjunto de los números enteros (positivos, negativos y el cero), su representación en la recta numérica, valor absoluto y operaciones fundamentales en problemas de temperatura, altitud y finanzas.',
+    specificCompetencies: [
+      {
+        title: 'Razonamiento y Argumentación Matemática',
+        description: 'Justifica el uso de números enteros positivos y negativos para modelar deudas, ganancias, temperaturas bajo cero y profundidades marinas.'
+      },
+      {
+        title: 'Resolución de Problemas en Z',
+        description: 'Resuelve operaciones combinadas de adición, sustracción, multiplicación y división de números enteros aplicando la regla de los signos.'
+      }
+    ],
+    conceptualContents: [
+      'El conjunto de los números enteros (Z): enteros positivos, enteros negativos y el opuesto de un número.',
+      'Valor absoluto y relaciones de orden en la recta numérica.',
+      'Operaciones en Z y ley de los signos.'
+    ],
+    proceduralContents: [
+      'Ubicación y comparación de temperaturas y altitudes (ej. Pico Duarte vs Hoya de Enriquillo) en la recta numérica.',
+      'Resolución de ejercicios y problemas financieros de ingresos y egresos con números enteros.',
+      'Aplicación de propiedades y jerarquía de las operaciones en Z.'
+    ],
+    attitudinalContents: [
+      'Rigor lógico, perseverancia en la resolución de problemas y orden en el cuaderno.',
+      'Valoración de la matemática para tomar decisiones financieras responsables.'
+    ],
+    achievementIndicators: [
+      'Representa y ordena números enteros en la recta numérica e identifica su valor absoluto.',
+      'Efectúa con precisión sumas, restas, multiplicaciones y divisiones de números enteros.',
+      'Resuelve problemas reales de variación de temperatura, altitud geográfica y balance económico.'
+    ],
+    startSuggestions: [
+      'Comparación geográfica dominicana: El Pico Duarte está a +3,098 m sobre el nivel del mar y el Lago Enriquillo a -46 m bajo el nivel del mar. ¿Cómo representamos ambas cifras?'
+    ],
+    devSuggestions: [
+      'Construcción de la recta numérica entera y deducción práctica de las reglas de suma y resta de enteros.',
+      'Taller en parejas resolviendo balances de una cooperativa estudiantil.'
+    ],
+    closeSuggestions: [
+      'Corrección interactiva en la pizarra y pregunta metacognitiva sobre la regla de los signos.'
+    ],
+    evaluations: ['Prueba práctica de resolución de problemas en Z', 'Rúbrica de cuaderno y trabajo en equipo']
   }
 ];
 
 export const GRADES_LIST = [
+  'Pre-Primario',
   '1er Grado',
   '2do Grado',
   '3er Grado',
   '4to Grado',
   '5to Grado',
-  '6to Grado'
+  '6to Grado',
+  '1ro de Secundaria'
 ];
 
 export const PERIODS_LIST = [
@@ -692,3 +1051,4 @@ export const PERIODS_LIST = [
   'Período 3',
   'Período 4'
 ];
+

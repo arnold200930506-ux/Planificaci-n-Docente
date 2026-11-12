@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   HeartHandshake, 
   Plus, 
@@ -83,8 +83,68 @@ export const PsychologyGuidance: React.FC<PsychologyGuidanceProps> = ({
   onSaveOrientator,
   onDeleteOrientator
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'cases' | 'orientators'>('cases');
+  const [activeSubTab, setActiveSubTab] = useState<'cases' | 'workshops' | 'neae' | 'orientators'>('cases');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Preventive Workshops (Charlas y Talleres)
+  const workshopsKey = `minerd_psych_workshops_${schoolConfig.schoolCode || '14668'}`;
+  const [workshops, setWorkshops] = useState<{
+    id: string;
+    title: string;
+    category: string;
+    grade: string;
+    date: string;
+    participantsCount: number;
+    orientatorName: string;
+    summary: string;
+  }[]>(() => {
+    try {
+      const raw = localStorage.getItem(workshopsKey);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+  const [newWorkshopTitle, setNewWorkshopTitle] = useState('');
+  const [newWorkshopCategory, setNewWorkshopCategory] = useState('Cultura de Paz y Buen Trato');
+  const [newWorkshopGrade, setNewWorkshopGrade] = useState('4to Grado');
+  const [newWorkshopDate, setNewWorkshopDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newWorkshopCount, setNewWorkshopCount] = useState(28);
+  const [newWorkshopSummary, setNewWorkshopSummary] = useState('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(workshopsKey, JSON.stringify(workshops));
+    } catch {}
+  }, [workshops, workshopsKey]);
+
+  // NEAE Records (Apoyo Psicopedagógico y Necesidades Específicas)
+  const neaeKey = `minerd_psych_neae_${schoolConfig.schoolCode || '14668'}`;
+  const [neaeRecords, setNeaeRecords] = useState<{
+    id: string;
+    studentName: string;
+    grade: string;
+    conditionType: string;
+    curricularAdjustments: string;
+    teacherGuidelines: string;
+    status: string;
+  }[]>(() => {
+    try {
+      const raw = localStorage.getItem(neaeKey);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  });
+  const [neaeStudent, setNeaeStudent] = useState('');
+  const [neaeGrade, setNeaeGrade] = useState('1er Grado');
+  const [neaeCondition, setNeaeCondition] = useState('Rezago Lector / Lectoescritura');
+  const [neaeAdjustments, setNeaeAdjustments] = useState('');
+  const [neaeGuidelines, setNeaeGuidelines] = useState('');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(neaeKey, JSON.stringify(neaeRecords));
+    } catch {}
+  }, [neaeRecords, neaeKey]);
   const [selectedTypeFilter, setSelectedTypeFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedShiftFilter, setSelectedShiftFilter] = useState<string>('all');
@@ -314,7 +374,7 @@ _Agradecemos su compromiso pedagógico y labor docente._`;
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       
       {/* Subtab navigation */}
-      <div className="flex items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl w-fit shadow-2xs">
+      <div className="flex flex-wrap items-center gap-2 p-1.5 bg-slate-200/80 rounded-2xl w-fit shadow-2xs border border-slate-300">
         <button
           type="button"
           onClick={() => setActiveSubTab('cases')}
@@ -325,8 +385,35 @@ _Agradecemos su compromiso pedagógico y labor docente._`;
           }`}
         >
           <FileText className="w-3.5 h-3.5 text-purple-600" />
-          <span>Casos y Expedientes Estudiantiles ({reports.length})</span>
+          <span>1. Casos y Expedientes ({reports.length})</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('workshops')}
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+            activeSubTab === 'workshops'
+              ? 'bg-white text-slate-900 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <HeartHandshake className="w-3.5 h-3.5 text-emerald-600" />
+          <span>2. Charlas, Talleres y Prevención ({workshops.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveSubTab('neae')}
+          className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-2 ${
+            activeSubTab === 'neae'
+              ? 'bg-white text-slate-900 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+          <span>3. Apoyo Psicopedagógico & NEAE ({neaeRecords.length})</span>
+        </button>
+
         <button
           type="button"
           onClick={() => setActiveSubTab('orientators')}
@@ -337,7 +424,7 @@ _Agradecemos su compromiso pedagógico y labor docente._`;
           }`}
         >
           <Users className="w-3.5 h-3.5 text-rose-600" />
-          <span>Equipo de Orientadores y Psicólogos ({orientators.length})</span>
+          <span>4. Equipo de Orientadores y Psicólogos ({orientators.length})</span>
         </button>
       </div>
 
@@ -348,6 +435,279 @@ _Agradecemos su compromiso pedagógico y labor docente._`;
           onSaveOrientator={onSaveOrientator || (() => {})}
           onDeleteOrientator={onDeleteOrientator || (() => {})}
         />
+      ) : activeSubTab === 'workshops' ? (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
+                Programas Preventivos MINERD
+              </span>
+              <h2 className="text-lg font-black text-slate-900 mt-1">
+                Registro de Charlas, Talleres Estudiantiles y Escuela de Padres
+              </h2>
+              <p className="text-xs text-slate-500">
+                Documente las intervenciones grupales por grado (Prevención de Bullying, Cultura de Paz, Educación Sexual Integral, Proyecto de Vida y Escuela de Padres).
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+              <div className="lg:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Tema de la Charla o Taller *</label>
+                <input
+                  type="text"
+                  value={newWorkshopTitle}
+                  onChange={(e) => setNewWorkshopTitle(e.target.value)}
+                  placeholder="Ej. Prevención del Acoso Escolar y Empatía en el Aula"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Eje Preventivo</label>
+                <select
+                  value={newWorkshopCategory}
+                  onChange={(e) => setNewWorkshopCategory(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                >
+                  <option value="Cultura de Paz y Buen Trato">Cultura de Paz y Buen Trato</option>
+                  <option value="Prevención de Bullying / Acoso">Prevención de Bullying / Acoso</option>
+                  <option value="Escuela de Padres y Madres">Escuela de Padres y Madres</option>
+                  <option value="Hábitos de Estudio y Motivación">Hábitos de Estudio y Motivación</option>
+                  <option value="Educación en Valores y Ciudadanía">Educación en Valores y Ciudadanía</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Grado / Destinatarios</label>
+                <input
+                  type="text"
+                  value={newWorkshopGrade}
+                  onChange={(e) => setNewWorkshopGrade(e.target.value)}
+                  placeholder="Ej. 4to Grado A / Familias"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Participantes</label>
+                <input
+                  type="number"
+                  value={newWorkshopCount}
+                  onChange={(e) => setNewWorkshopCount(Number(e.target.value) || 0)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div className="flex-1 w-full">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Síntesis de Dinámica y Logros</label>
+                <input
+                  type="text"
+                  value={newWorkshopSummary}
+                  onChange={(e) => setNewWorkshopSummary(e.target.value)}
+                  placeholder="Acuerdos asumidos por los estudiantes y valoración de la actividad..."
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!newWorkshopTitle.trim()) return;
+                  setWorkshops(prev => [
+                    {
+                      id: `wk-${Date.now()}`,
+                      title: newWorkshopTitle.trim(),
+                      category: newWorkshopCategory,
+                      grade: newWorkshopGrade,
+                      date: newWorkshopDate,
+                      participantsCount: newWorkshopCount,
+                      orientatorName: orientators[0]?.name || schoolConfig.orientatorName || 'Orientación Escolar',
+                      summary: newWorkshopSummary.trim() || 'Participación activa y reflexión grupal satisfactoria.'
+                    },
+                    ...prev
+                  ]);
+                  setNewWorkshopTitle('');
+                  setNewWorkshopSummary('');
+                }}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shrink-0 cursor-pointer"
+              >
+                + Registrar Charla / Taller
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {workshops.length === 0 ? (
+              <div className="col-span-2 bg-white p-10 rounded-3xl border border-slate-200 text-center text-xs text-slate-500">
+                No hay charlas ni talleres registrados todavía. Utilice el formulario superior para agregarlos.
+              </div>
+            ) : (
+              workshops.map(w => (
+                <div key={w.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-900 rounded-lg text-[10px] font-black">
+                        {w.category}
+                      </span>
+                      <h3 className="text-sm font-black text-slate-900 mt-1">{w.title}</h3>
+                      <p className="text-xs text-slate-500 font-semibold">
+                        {w.grade} · {w.participantsCount} participantes · Fecha: {w.date}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setWorkshops(prev => prev.filter(item => item.id !== w.id))}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    {w.summary}
+                  </p>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      ) : activeSubTab === 'neae' ? (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-lg">
+                Educación Inclusiva y Atención a la Diversidad
+              </span>
+              <h2 className="text-lg font-black text-slate-900 mt-1">
+                Seguimiento a Estudiantes con Necesidades Específicas de Apoyo Educativo (NEAE)
+              </h2>
+              <p className="text-xs text-slate-500">
+                Registre ajustes curriculares individualizados, apoyos psicopedagógicos en lectoescritura/matemática y orientaciones para el docente de aula.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nombre del Estudiante *</label>
+                <input
+                  type="text"
+                  value={neaeStudent}
+                  onChange={(e) => setNeaeStudent(e.target.value)}
+                  placeholder="Nombre y Apellidos"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Grado y Sección</label>
+                <input
+                  type="text"
+                  value={neaeGrade}
+                  onChange={(e) => setNeaeGrade(e.target.value)}
+                  placeholder="Ej. 2do Grado A"
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Condición / Necesidad Detectada</label>
+                <select
+                  value={neaeCondition}
+                  onChange={(e) => setNeaeCondition(e.target.value)}
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl font-bold"
+                >
+                  <option value="Rezago Lector / Lectoescritura">Rezago Lector / Lectoescritura</option>
+                  <option value="Dificultad Específica en Matemática (Discalculia)">Dificultad Específica en Matemática</option>
+                  <option value="Déficit de Atención e Hiperactividad (TDAH)">Déficit de Atención (TDAH)</option>
+                  <option value="Condición del Espectro Autista (TEA)">Condición del Espectro Autista (TEA)</option>
+                  <option value="vulnerabilidad Psicosocial / Emocional">Vulnerabilidad Psicosocial / Emocional</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Ajustes Curriculares Aplicados</label>
+                <input
+                  type="text"
+                  value={neaeAdjustments}
+                  onChange={(e) => setNeaeAdjustments(e.target.value)}
+                  placeholder="Ej. Evaluaciones orales segmentadas, material visual y concreto..."
+                  className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                />
+              </div>
+
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Pautas para el Docente</label>
+                  <input
+                    type="text"
+                    value={neaeGuidelines}
+                    onChange={(e) => setNeaeGuidelines(e.target.value)}
+                    placeholder="Ubicación cercana al docente, tutoría entre pares..."
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-xl"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!neaeStudent.trim()) return;
+                    setNeaeRecords(prev => [
+                      {
+                        id: `neae-${Date.now()}`,
+                        studentName: neaeStudent.trim(),
+                        grade: neaeGrade,
+                        conditionType: neaeCondition,
+                        curricularAdjustments: neaeAdjustments.trim() || 'Acompañamiento personalizado y consignas cortas.',
+                        teacherGuidelines: neaeGuidelines.trim() || 'Refuerzo positivo y ubicación en primeras filas.',
+                        status: 'Seguimiento Activo'
+                      },
+                      ...prev
+                    ]);
+                    setNeaeStudent('');
+                    setNeaeAdjustments('');
+                    setNeaeGuidelines('');
+                  }}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shrink-0 cursor-pointer"
+                >
+                  + Registrar Ficha NEAE
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {neaeRecords.length === 0 ? (
+              <div className="col-span-2 bg-white p-10 rounded-3xl border border-slate-200 text-center text-xs text-slate-500">
+                No hay fichas de apoyo psicopedagógico NEAE registradas aún.
+              </div>
+            ) : (
+              neaeRecords.map(item => (
+                <div key={item.id} className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="px-2.5 py-0.5 bg-indigo-100 text-indigo-900 rounded-lg text-[10px] font-black">
+                        {item.conditionType}
+                      </span>
+                      <h3 className="text-sm font-black text-slate-900 mt-1">{item.studentName} ({item.grade})</h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNeaeRecords(prev => prev.filter(r => r.id !== item.id))}
+                      className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1">
+                    <p><strong>Ajustes Curriculares:</strong> {item.curricularAdjustments}</p>
+                    <p><strong>Pautas para el Aula:</strong> {item.teacherGuidelines}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       ) : (
         <>
           {/* Header Banner */}

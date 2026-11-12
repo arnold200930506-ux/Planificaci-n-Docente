@@ -31,6 +31,7 @@ export type ActiveTab =
   | 'weekly' 
   | 'units' 
   | 'curriculum' 
+  | 'grades'
   | 'print';
 
 interface NavbarProps {

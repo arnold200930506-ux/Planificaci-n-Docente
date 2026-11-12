@@ -590,15 +590,66 @@ export const PrintableExporter: React.FC<PrintableExporterProps> = ({
               </tbody>
             </table>
 
+            {/* Componentes Especiales Nivel Inicial (Tipo de planificación, Tema, Cuadro de Anticipación, Dominios) */}
+            {currentUnit.level === 'inicial' && currentUnit.inicialData && (
+              <div className="space-y-3">
+                <table className="w-full border-collapse border border-slate-900 text-left text-[11px]">
+                  <tbody>
+                    <tr className="border-b border-slate-900">
+                      <td className="p-2 bg-slate-100 font-bold w-1/4 border-r border-slate-900">Tipo de Planificación:</td>
+                      <td className="p-2 border-r border-slate-900 font-bold">{currentUnit.inicialData.planningType}</td>
+                      <td className="p-2 bg-slate-100 font-bold w-1/4 border-r border-slate-900">Selección del Tema:</td>
+                      <td className="p-2 font-bold">{currentUnit.inicialData.themeSelection || currentUnit.title}</td>
+                    </tr>
+                    <tr className="border-b border-slate-900">
+                      <td className="p-2 bg-slate-100 font-bold border-r border-slate-900">Dominios Curriculares:</td>
+                      <td colSpan={3} className="p-2 font-semibold">
+                        {currentUnit.inicialData.selectedDomains?.join(' • ') || 'Dominios del Nivel Inicial'}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="p-2 bg-slate-100 font-bold border-r border-slate-900">Ejes Transversales:</td>
+                      <td colSpan={3} className="p-2">
+                        {currentUnit.inicialData.transversalAxes?.join(', ') || 'Salud y Bienestar, Convivencia'}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Cuadro de Anticipación Oficial MINERD */}
+                {currentUnit.inicialData.anticipationQuestions && currentUnit.inicialData.anticipationQuestions.length > 0 && (
+                  <div className="border border-slate-900">
+                    <div className="bg-slate-200 p-1.5 font-bold text-[11px] uppercase border-b border-slate-900 text-center">
+                      Cuadro de Anticipación (Construcción Colectiva con los Niños)
+                    </div>
+                    <div className="grid grid-cols-2 divide-x divide-y divide-slate-900 text-[10px]">
+                      {currentUnit.inicialData.anticipationQuestions.map((q, idx) => (
+                        <div key={idx} className="p-2 space-y-1">
+                          <p className="font-bold text-slate-900">{q.question}</p>
+                          <p className="italic text-slate-700">{q.childrenResponses || '—'}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Situación de Aprendizaje */}
             <div className="border border-slate-900 rounded-xs p-3 space-y-2">
               <h3 className="font-bold text-xs uppercase border-b border-slate-900 pb-1">
                 Situación de Aprendizaje (MINERD)
               </h3>
-              <p><span className="font-bold">Punto de partida:</span> {currentUnit.learningSituation.startingPoint}</p>
-              <p><span className="font-bold">Rol de los estudiantes:</span> {currentUnit.learningSituation.studentRole}</p>
-              <p><span className="font-bold">Pregunta detonante / Reto:</span> {currentUnit.learningSituation.challengeQuestion}</p>
-              <p><span className="font-bold">Producto final:</span> {currentUnit.learningSituation.finalProduct}</p>
+              {typeof currentUnit.learningSituation === 'string' ? (
+                <p className="whitespace-pre-line">{currentUnit.learningSituation}</p>
+              ) : (
+                <>
+                  <p><span className="font-bold">Punto de partida:</span> {currentUnit.learningSituation.startingPoint}</p>
+                  <p><span className="font-bold">Rol de los estudiantes:</span> {currentUnit.learningSituation.studentRole}</p>
+                  <p><span className="font-bold">Pregunta detonante / Reto:</span> {currentUnit.learningSituation.challengeQuestion}</p>
+                  <p><span className="font-bold">Producto final:</span> {currentUnit.learningSituation.finalProduct}</p>
+                </>
+              )}
             </div>
           </div>
         )}

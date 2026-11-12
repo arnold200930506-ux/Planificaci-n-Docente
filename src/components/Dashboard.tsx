@@ -34,6 +34,7 @@ import {
 } from '../types/minerd';
 import { FUNDAMENTAL_COMPETENCIES } from '../data/minerdCurriculum';
 import { UploadPreMadePlanModal } from './UploadPreMadePlanModal';
+import { CurricularSummaryView } from './CurricularSummaryView';
 import { storageService } from '../services/storageService';
 
 interface DashboardProps {
@@ -227,6 +228,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
       </div>
+
+      {/* Resumen Curricular: Visualización de Datos (Porcentaje por Estado y Área Pedagógica) */}
+      <CurricularSummaryView
+        dailyPlans={dailyPlans}
+        weeklyPlans={weeklyPlans}
+        learningUnits={learningUnits}
+      />
 
       {/* Competencies Progress Bar */}
       <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
